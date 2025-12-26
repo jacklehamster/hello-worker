@@ -34,7 +34,7 @@ const TEST_HTML = `<!doctype html>
     }
 
     function logLine(direction, obj) {
-      logEl.textContent += ts() + "  " + direction + "  " + JSON.stringify(obj) + "\\n";
+      logEl.textContent += ts() + "  " + direction + "  " + (obj ? JSON.stringify(obj) : "") + "\\n";
       logEl.scrollTop = logEl.scrollHeight;
     }
 
