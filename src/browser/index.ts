@@ -1,6 +1,8 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
+import { enterRoom } from "./signal-room.js";
+
 const statusEl = document.getElementById("status")!;
 const logEl = document.getElementById("log")!;
 const welcomeEl = document.getElementById("welcome") as HTMLTextAreaElement;
@@ -18,57 +20,28 @@ function logLine(direction: string, obj?: any) {
     logEl.scrollTop = logEl.scrollHeight;
 }
 
-const wsUrl = "wss://" + location.host + "/room/test";
-const ws = new WebSocket(wsUrl);
 
-function send(obj: any) {
-    ws.send(JSON.stringify(obj));
-    logLine("👤 ➡️ 🖥️", obj);
-}
-
-ws.onopen = () => {
-    statusEl.textContent = "connected";
-    logLine("🔗  CONNECTED");
-};
-
-ws.onclose = () => {
-    statusEl.textContent = "closed";
-    logLine("⛓️‍💥  DISCONNECTED");
-};
-
-ws.onerror = () => {
-    statusEl.textContent = "error";
-    logLine("⚠️ ERROR");
-};
-
-ws.onmessage = (e) => {
-    let msg;
-    try { msg = JSON.parse(e.data); }
-    catch { msg = { raw: e.data }; }
-
-    logLine("🖥️ ➡️ 👤", msg);
-
-    // Existing client greets newcomers
-    if (msg.type === "peer-joined" && msg.peerId) {
-    send({
-        type: "welcome",
-        to: msg.peerId,
-        payload: { note: welcomeEl.value },
-    });
-    return;
-    }
-
-    // New client says thanks back to the sender
-    if (msg.type === "welcome" && msg.from) {
-    send({
-        type: "thanks",
-        to: msg.from,
-        payload: { note: "Thank you! 🙏" },
-        t: Date.now(),
-    });
-    return;
-    }
-};
-
-ws.onclose = () => { statusEl.textContent = "closed"; };
-ws.onerror = () => { statusEl.textContent = "error"; };
+enterRoom({
+    room: "test",
+    host: location.host,
+    getWelcomeNote: async () => {
+        return { note: welcomeEl.value };
+    },
+    getAnswerNote: async () => {
+        return { note: "Thank you! 🙏" };
+    },
+    onOpen: () => {
+        statusEl.textContent = "connected";
+        logLine("🔗  CONNECTED");
+    },
+    onClose: () => {
+        statusEl.textContent = "closed";
+        logLine("⛓️‍💥  DISCONNECTED");
+        statusEl.textContent = "closed";
+    },
+    onError: () => {
+        statusEl.textContent = "error";
+        logLine("⚠️ ERROR");
+    },
+    logLine,
+});
