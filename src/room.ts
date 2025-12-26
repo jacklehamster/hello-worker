@@ -16,11 +16,11 @@ export class Room implements DurableObject {
     const client = pair[0];
     const server = pair[1];
 
-    this.state.acceptWebSocket(server);
-
     // Assign internal peerId (client doesn't need to know it yet)
     const peerId = crypto.randomUUID();
     (server as any).peerId = peerId;
+
+    this.state.acceptWebSocket(server);
 
     // Notify all *existing* peers that a new peer joined
     for (const ws of this.state.getWebSockets()) {
