@@ -41,6 +41,7 @@ const { send, dispose } = enterRoom({
         send("welcome", peerId, { note: welcomeEl.value });
     },
     onMessage: (type, from, _payload) => {
+        console.log(type, from, _payload);
         if (type === "welcome" && from) {
             send("thanks", from, { note: "Thank you! 🙏" });
         }
