@@ -18,19 +18,17 @@ export class Room implements DurableObject {
 
     this.state.acceptWebSocket(server);
 
+    // Assign internal peerId (client doesn't need to know it yet)
     const peerId = crypto.randomUUID();
     (server as any).peerId = peerId;
 
-    // Tell the new client their peerId
-    server.send(JSON.stringify({ type: "joined", peerId, t: Date.now() }));
-
-    // Notify all existing peers
+    // Notify all *existing* peers that a new peer joined
     for (const ws of this.state.getWebSockets()) {
       if (ws === server) continue;
       try {
         ws.send(JSON.stringify({ type: "peer-joined", peerId, t: Date.now() }));
       } catch {
-        // ignore broken sockets
+        // ignore
       }
     }
 
@@ -68,9 +66,7 @@ export class Room implements DurableObject {
         if ((other as any).peerId === toPeerId) {
           try {
             other.send(JSON.stringify(out));
-          } catch {
-            // ignore
-          }
+          } catch {}
           return;
         }
       }
@@ -79,13 +75,7 @@ export class Room implements DurableObject {
       return;
     }
 
-    // Keep JSON echo for anything else (useful while building)
-    ws.send(JSON.stringify({
-      type: "echo",
-      from,
-      payload: msg,
-      t: Date.now(),
-    }));
+    // Optional while developing: reject everything else so it stays quiet
+    ws.send(JSON.stringify({ type: "error", error: "unsupported-message-type", t: Date.now() }));
   }
 }
-
