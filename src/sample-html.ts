@@ -1,4 +1,4 @@
-export default const TEST_HTML = `<!doctype html>
+const TEST_HTML = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -75,4 +75,5 @@ export default const TEST_HTML = `<!doctype html>
 </body>
 </html>`;
 
+export default TEST_HTML;
 
