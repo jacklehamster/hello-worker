@@ -65,10 +65,10 @@ const TEST_HTML = `<!doctype html>
       let msg;
       try { msg = JSON.parse(e.data); }
       catch { msg = { raw: e.data }; }
-
+    
       logLine("🖥️ ➡️ 👤", msg);
-
-      // Option 1 behavior: existing members greet newcomers
+    
+      // Existing client greets newcomers
       if (msg.type === "peer-joined" && msg.peerId) {
         send({
           type: "welcome",
@@ -76,6 +76,18 @@ const TEST_HTML = `<!doctype html>
           payload: { note: welcomeEl.value },
           t: Date.now(),
         });
+        return;
+      }
+    
+      // New client says thanks back to the sender
+      if (msg.type === "welcome" && msg.from) {
+        send({
+          type: "thanks",
+          to: msg.from,
+          payload: { note: "Thank you! 🙏" },
+          t: Date.now(),
+        });
+        return;
       }
     };
 
