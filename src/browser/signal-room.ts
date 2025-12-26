@@ -38,6 +38,7 @@ export function enterRoom<T extends string, P = any>({
             onPeerJoined?.(msg.peerId);
             return;
         }
+        console.log(msg);
         onMessage?.(msg.type, msg.from, msg.payload);
     };
 
