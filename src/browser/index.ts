@@ -21,15 +21,9 @@ function logLine(direction: string, obj?: any) {
 }
 
 
-enterRoom({
+const { send, dispose } = enterRoom({
     room: "test",
     host: location.host,
-    getWelcomeNote: async () => {
-        return { note: welcomeEl.value };
-    },
-    getAnswerNote: async () => {
-        return { note: "Thank you! 🙏" };
-    },
     onOpen: () => {
         statusEl.textContent = "connected";
         logLine("🔗  CONNECTED");
@@ -42,6 +36,14 @@ enterRoom({
     onError: () => {
         statusEl.textContent = "error";
         logLine("⚠️ ERROR");
+    },
+    onPeerJoined: (peerId: string) => {
+        send("welcome", peerId, { note: welcomeEl.value });
+    },
+    onMessage: (type, from, _payload) => {
+        if (type === "welcome" && from) {
+            send("thanks", from, { note: "Thank you! 🙏" });
+        }
     },
     logLine,
 });
