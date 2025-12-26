@@ -1,7 +1,6 @@
-import TEST_HTML from "./sample-html";
-
 export interface Env {
   ROOM: DurableObjectNamespace;
+  ASSETS: Fetcher;
 }
 
 export { Room } from "./room";
@@ -13,9 +12,8 @@ export default {
     // If NOT /room/<id>, serve test HTML
     const match = url.pathname.match(/^\/room\/([^/]+)$/);
     if (!match) {
-      return new Response(TEST_HTML, {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
+      // everything else falls through to static assets
+      return env.ASSETS.fetch(req);
     }
 
     // WebSocket upgrade required

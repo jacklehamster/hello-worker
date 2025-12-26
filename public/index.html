@@ -1,4 +1,4 @@
-const TEST_HTML = `<!doctype html>
+<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -30,11 +30,11 @@ const TEST_HTML = `<!doctype html>
       const d = new Date();
       const p2 = (n) => String(n).padStart(2, "0");
       const p3 = (n) => String(n).padStart(3, "0");
-      return \`\${p2(d.getHours())}:\${p2(d.getMinutes())}:\${p2(d.getSeconds())}.\${p3(d.getMilliseconds())}\`;
+      return `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}.${p3(d.getMilliseconds())}`;
     }
 
     function logLine(direction, obj) {
-      logEl.textContent += ts() + "  " + direction + "  " + (obj ? JSON.stringify(obj) : "") + "\\n";
+      logEl.textContent += ts() + "  " + direction + "  " + (obj ? JSON.stringify(obj) : "") + "\n";
       logEl.scrollTop = logEl.scrollHeight;
     }
 
@@ -95,7 +95,4 @@ const TEST_HTML = `<!doctype html>
     ws.onerror = () => { status.textContent = "error"; };
   </script>
 </body>
-</html>`;
-
-export default TEST_HTML;
-
+</html>
