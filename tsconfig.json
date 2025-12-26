@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist",
+    "types": ["@cloudflare/workers-types"],
+    "lib": ["esnext", "webworker"],
+  },
+  "include": ["src/**/*", "src/declarations.d.ts"]
+}
