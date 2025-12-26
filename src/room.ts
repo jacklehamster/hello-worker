@@ -52,16 +52,19 @@ export class Room implements DurableObject {
     }
 
     // Route targeted welcome messages
-    if (msg?.type === "welcome" && typeof msg.to === "string") {
+    if (
+      (msg?.type === "welcome" || msg?.type === "thanks") &&
+      typeof msg.to === "string"
+    ) {
       const toPeerId = msg.to;
-
+    
       const out = {
-        type: "welcome",
-        from,
-        payload: (msg.payload ?? null) as AnyJson,
+        type: msg.type,               // "welcome" or "thanks"
+        from: (ws as any).peerId,
+        payload: msg.payload ?? null,
         t: Date.now(),
       };
-
+    
       for (const other of this.state.getWebSockets()) {
         if ((other as any).peerId === toPeerId) {
           try {
@@ -70,8 +73,15 @@ export class Room implements DurableObject {
           return;
         }
       }
-
-      ws.send(JSON.stringify({ type: "error", error: "peer-not-found", to: toPeerId, t: Date.now() }));
+    
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          error: "peer-not-found",
+          to: toPeerId,
+          t: Date.now(),
+        })
+      );
       return;
     }
 
