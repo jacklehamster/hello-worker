@@ -1,4 +1,5 @@
 export default const TEST_HTML = `<!doctype html>
+<html>
 <head>
   <meta charset="utf-8" />
   <title>Welcome Note Test</title>
@@ -73,4 +74,5 @@ export default const TEST_HTML = `<!doctype html>
   </script>
 </body>
 </html>`;
+
 
