@@ -1,11 +1,10 @@
 export default const TEST_HTML = `<!doctype html>
-<html>
 <head>
   <meta charset="utf-8" />
   <title>Welcome Note Test</title>
   <style>
     body { font-family: sans-serif; padding: 20px; }
-    #log { background:#111; color:#0f0; padding:10px; height:260px; overflow:auto; white-space:pre-wrap; }
+    #log { background:#111; color:#0f0; padding:10px; height:260px; overflow:auto; white-space:pre; }
     textarea { width: 100%; height: 80px; }
     input, button, textarea { font-size: 14px; }
   </style>
@@ -13,81 +12,65 @@ export default const TEST_HTML = `<!doctype html>
 <body>
   <h1>Welcome Note Test</h1>
   <p>Status: <b id="status">connecting…</b></p>
-  <p>Your peerId: <code id="me">?</code></p>
 
   <h3>Welcome note (sent to newcomers)</h3>
-  <textarea id="welcome">Hello 👋 welcome!</textarea>
+  <textarea id="welcome">Hello 👋 welcome friend!</textarea>
 
-  <h3>Log</h3>
+  <h3>Log (one line per network message)</h3>
   <div id="log"></div>
 
   <script>
     const status = document.getElementById("status");
-    const meEl = document.getElementById("me");
     const logEl = document.getElementById("log");
     const welcomeEl = document.getElementById("welcome");
 
-    function log(obj) {
-      const line = (typeof obj === "string") ? obj : JSON.stringify(obj, null, 2);
-      logEl.textContent += line + "\\n";
+    function ts() {
+      // HH:MM:SS.mmm (local time)
+      const d = new Date();
+      const p2 = (n) => String(n).padStart(2, "0");
+      const p3 = (n) => String(n).padStart(3, "0");
+      return \`\${p2(d.getHours())}:\${p2(d.getMinutes())}:\${p2(d.getSeconds())}.\${p3(d.getMilliseconds())}\`;
+    }
+
+    function logLine(direction, obj) {
+      logEl.textContent += ts() + "  " + direction + "  " + JSON.stringify(obj) + "\\n";
       logEl.scrollTop = logEl.scrollHeight;
     }
 
     const wsUrl = "wss://" + location.host + "/room/test";
-    log("Connecting to " + wsUrl);
-
     const ws = new WebSocket(wsUrl);
-    let myPeerId = null;
+
+    function send(obj) {
+      ws.send(JSON.stringify(obj));
+      logLine("👤 ➡️ 🖥️", obj);
+    }
 
     ws.onopen = () => {
       status.textContent = "connected";
-      log({ event: "ws-open" });
+      // No message sent on connect (quiet join)
     };
 
     ws.onmessage = (e) => {
       let msg;
-      try { msg = JSON.parse(e.data); } catch { msg = { raw: e.data }; }
+      try { msg = JSON.parse(e.data); }
+      catch { msg = { raw: e.data }; }
 
-      log({ event: "ws-message", msg });
+      logLine("🖥️ ➡️ 👤", msg);
 
-      if (msg.type === "joined") {
-        myPeerId = msg.peerId;
-        meEl.textContent = myPeerId;
-        return;
-      }
-
-      if (msg.type === "peer-joined") {
-        const newPeerId = msg.peerId;
-        const note = welcomeEl.value;
-
-        // Send targeted welcome to the new peer
-        ws.send(JSON.stringify({
+      // Option 1 behavior: existing members greet newcomers
+      if (msg.type === "peer-joined" && msg.peerId) {
+        send({
           type: "welcome",
-          to: newPeerId,
-          payload: { note },
-          t: Date.now()
-        }));
-
-        log({ event: "sent-welcome", to: newPeerId, note });
-        return;
-      }
-
-      if (msg.type === "welcome") {
-        // Display welcome received
-        log({ event: "got-welcome", from: msg.from, payload: msg.payload });
-        return;
+          to: msg.peerId,
+          payload: { note: welcomeEl.value },
+          t: Date.now(),
+        });
       }
     };
 
-    ws.onclose = () => {
-      status.textContent = "closed";
-      log({ event: "ws-close" });
-    };
-
-    ws.onerror = () => {
-      status.textContent = "error";
-      log({ event: "ws-error" });
-    };
+    ws.onclose = () => { status.textContent = "closed"; };
+    ws.onerror = () => { status.textContent = "error"; };
   </script>
 </body>
 </html>`;
+
