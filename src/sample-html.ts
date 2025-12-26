@@ -48,7 +48,17 @@ const TEST_HTML = `<!doctype html>
 
     ws.onopen = () => {
       status.textContent = "connected";
-      // No message sent on connect (quiet join)
+      logLine("🔗  CONNECTED");
+    };
+    
+    ws.onclose = () => {
+      status.textContent = "closed";
+      logLine("⛓️‍💥  DISCONNECTED");
+    };
+    
+    ws.onerror = () => {
+      status.textContent = "error";
+      logLine("⚠️ ERROR");
     };
 
     ws.onmessage = (e) => {
