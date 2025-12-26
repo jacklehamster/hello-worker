@@ -48,9 +48,6 @@ const TEST_HTML = `<!doctype html>
     ws.onopen = () => {
       status.textContent = "connected";
       log({ event: "ws-open" });
-
-      // optional explicit join message (server already knows you're connected)
-      ws.send(JSON.stringify({ type: "join", t: Date.now() }));
     };
 
     ws.onmessage = (e) => {
