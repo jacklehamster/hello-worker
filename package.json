@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "wrangler dev src/index.ts --config wrangler.dev.toml",
     "deploy": "wrangler deploy",
-    "build": "bun i && tsc"
+    "build": "bun i && bun build src/browser/* --target browser --outdir public --minify --sourcemap && tsc"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "latest",
