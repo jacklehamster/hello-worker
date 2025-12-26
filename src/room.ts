@@ -26,7 +26,7 @@ export class Room implements DurableObject {
     for (const ws of this.state.getWebSockets()) {
       if (ws === server) continue;
       try {
-        ws.send(JSON.stringify({ type: "peer-joined", peerId, t: Date.now() }));
+        ws.send(JSON.stringify({ type: "peer-joined", peerId }));
       } catch {
         // ignore
       }
@@ -39,7 +39,7 @@ export class Room implements DurableObject {
     const from = (ws as any).peerId as string | undefined;
 
     if (typeof message !== "string") {
-      ws.send(JSON.stringify({ type: "error", error: "binary-not-supported", t: Date.now() }));
+      ws.send(JSON.stringify({ type: "error", error: "binary-not-supported" }));
       return;
     }
 
@@ -47,22 +47,18 @@ export class Room implements DurableObject {
     try {
       msg = JSON.parse(message);
     } catch {
-      ws.send(JSON.stringify({ type: "error", error: "invalid-json", t: Date.now() }));
+      ws.send(JSON.stringify({ type: "error", error: "invalid-json" }));
       return;
     }
 
     // Route targeted welcome messages
-    if (
-      (msg?.type === "welcome" || msg?.type === "thanks") &&
-      typeof msg.to === "string"
-    ) {
+    if (typeof msg.to === "string") {
       const toPeerId = msg.to;
     
       const out = {
-        type: msg.type,               // "welcome" or "thanks"
+        type: msg.type,
         from: (ws as any).peerId,
         payload: msg.payload ?? null,
-        t: Date.now(),
       };
     
       for (const other of this.state.getWebSockets()) {
@@ -79,13 +75,12 @@ export class Room implements DurableObject {
           type: "error",
           error: "peer-not-found",
           to: toPeerId,
-          t: Date.now(),
         })
       );
       return;
     }
 
     // Optional while developing: reject everything else so it stays quiet
-    ws.send(JSON.stringify({ type: "error", error: "unsupported-message-type", t: Date.now() }));
+    ws.send(JSON.stringify({ type: "error", error: "unsupported-message-type" }));
   }
 }
