@@ -1,32 +1,34 @@
-// src/room.ts
+type AnyJson =
+  | null
+  | boolean
+  | number
+  | string
+  | AnyJson[]
+  | { [k: string]: AnyJson };
+
 export class Room implements DurableObject {
   constructor(private state: DurableObjectState, private env: unknown) {
     void env;
   }
 
-  async fetch(req: Request): Promise<Response> {
+  async fetch(_req: Request): Promise<Response> {
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
 
-    // Accept socket (hibernation-safe)
     this.state.acceptWebSocket(server);
 
-    // Assign peer id
     const peerId = crypto.randomUUID();
     (server as any).peerId = peerId;
 
-    // Notify existing peers
+    // Tell the new client their peerId
+    server.send(JSON.stringify({ type: "joined", peerId, t: Date.now() }));
+
+    // Notify all existing peers
     for (const ws of this.state.getWebSockets()) {
       if (ws === server) continue;
       try {
-        ws.send(
-          JSON.stringify({
-            type: "peer-joined",
-            peerId,
-            t: Date.now(),
-          })
-        );
+        ws.send(JSON.stringify({ type: "peer-joined", peerId, t: Date.now() }));
       } catch {
         // ignore broken sockets
       }
@@ -36,39 +38,54 @@ export class Room implements DurableObject {
   }
 
   webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
-    const peerId = (ws as any).peerId;
-    let payload: unknown = null;
+    const from = (ws as any).peerId as string | undefined;
 
-    // Try to parse JSON, fall back to raw string
-    if (typeof message === "string") {
-      try {
-        payload = JSON.parse(message);
-      } catch {
-        payload = message;
-      }
-    } else {
-      // Binary data — send as base64 for now (simple + JSON-safe)
-      payload = {
-        binary: true,
-        data: Array.from(new Uint8Array(message)),
-      };
+    if (typeof message !== "string") {
+      ws.send(JSON.stringify({ type: "error", error: "binary-not-supported", t: Date.now() }));
+      return;
     }
 
-    const response = {
-      type: "echo",
-      from: peerId,
-      payload,
-      t: Date.now(),
-    };
-
+    let msg: any;
     try {
-      ws.send(JSON.stringify(response));
+      msg = JSON.parse(message);
     } catch {
-      // ignore send failures
+      ws.send(JSON.stringify({ type: "error", error: "invalid-json", t: Date.now() }));
+      return;
     }
-  }
 
-  webSocketClose(ws: WebSocket) {
-    void ws;
+    // Route targeted welcome messages
+    if (msg?.type === "welcome" && typeof msg.to === "string") {
+      const toPeerId = msg.to;
+
+      const out = {
+        type: "welcome",
+        from,
+        payload: (msg.payload ?? null) as AnyJson,
+        t: Date.now(),
+      };
+
+      for (const other of this.state.getWebSockets()) {
+        if ((other as any).peerId === toPeerId) {
+          try {
+            other.send(JSON.stringify(out));
+          } catch {
+            // ignore
+          }
+          return;
+        }
+      }
+
+      ws.send(JSON.stringify({ type: "error", error: "peer-not-found", to: toPeerId, t: Date.now() }));
+      return;
+    }
+
+    // Keep JSON echo for anything else (useful while building)
+    ws.send(JSON.stringify({
+      type: "echo",
+      from,
+      payload: msg,
+      t: Date.now(),
+    }));
   }
 }
+
