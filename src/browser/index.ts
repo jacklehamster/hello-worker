@@ -71,7 +71,7 @@ export function testWebRTC() {
     stageEl.style.margin = "12px 0";
     stageEl.style.userSelect = "none";
     stageEl.style.touchAction = "none";
-    document.body.insertBefore(stageEl, logEl);
+    document.body.insertBefore(stageEl, welcomeEl);
   }
 
   let emojiEl = document.getElementById("emoji") as HTMLDivElement | null;
@@ -177,6 +177,7 @@ export function testWebRTC() {
   return () => {
     window.clearInterval(interval);
     stageEl!.removeEventListener("pointermove", onPointerMove);
+    stageEl!.remove();
     session.exitRoom?.();
     logLine("ℹ️", { event: "stop-webrtc-test" });
   };
