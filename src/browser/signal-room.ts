@@ -59,19 +59,21 @@ export function enterRoom<T extends string, P = any>({
 
         // Existing client greets newcomers
         if (msg.type === "peer-joined" && msg.peerId && msg.userId) {
+            const { userId, peerId } = msg;
             onPeerJoined?.({
-                info: { peerId: msg.peerId, userId: msg.userId },
+                info: { peerId, userId },
                 receive: (type: T, payload: P) => {
-                    return send(type, msg.peerId, payload);
+                    return send(type, peerId, payload);
                 },
             });
             return;
         }
         if (msg.from.peerId && msg.from.userId) {
+            const { userId, peerId } = msg.from;
             onMessage?.(msg.type, msg.payload, {
-                info: { peerId: msg.from.peerId, userId: msg.from.userId },
+                info: { peerId, userId },
                 receive: (type: T, payload: P) => {
-                    return send(type, msg.peerId, payload);
+                    return send(type, peerId, payload);
                 },
             });
         }
