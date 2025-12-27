@@ -19,6 +19,7 @@ export class Room implements DurableObject {
     // Assign internal peerId (client doesn't need to know it yet)
     const peerId = crypto.randomUUID();
     (server as any).peerId = peerId;
+    console.log(`Room ${this.state.id.toString()} got new peer: ${peerId}`);
 
     this.state.acceptWebSocket(server);
 
@@ -37,6 +38,7 @@ export class Room implements DurableObject {
 
   webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
     const from = (ws as any).peerId as string | undefined;
+    console.log(`Room ${this.state.id.toString()} got message from ${from}:`, message);
 
     if (typeof message !== "string") {
       ws.send(JSON.stringify({ type: "error", error: "binary-not-supported" }));

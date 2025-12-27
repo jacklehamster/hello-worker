@@ -2,3 +2,30 @@ name = "hello-worker"
 compatibility_date = "2025-03-21"
 main = "src/index.ts"
 compatibility_flags = ["nodejs_compat"]
+
+[durable_objects]
+bindings = [
+  { name = "ROOM", class_name = "Room" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[assets]
+directory = "./public"
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
