@@ -52,6 +52,6 @@ export function testWelcome() {
         logLine,
     });
     return () => {
-        return exitRoom;
+        exitRoom();
     };
 }
