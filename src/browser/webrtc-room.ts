@@ -10,9 +10,6 @@ type PeerState = {
   // ICE that arrived before we had remoteDescription
   pendingRemoteIce: RTCIceCandidateInit[];
 
-  // whether we've started negotiation as initiator
-  started: boolean;
-
   // the signaling "user" handle so we can send messages
   users: Set<IUser<SigType, SigPayload>>;
 
@@ -66,32 +63,31 @@ export function joinWebRTCRoom({
     let state = peers.get(user.info.userId);
     if (!state) {
         const newState: PeerState = {
-            userId: user.info.userId,
-            pc: new RTCPeerConnection(rtcConfig),
-            pendingRemoteIce: [],
-            started: false,
-            users: new Set([user]),
-            dataChannel: null,
+          userId: user.info.userId,
+          pc: new RTCPeerConnection(rtcConfig),
+          pendingRemoteIce: [],
+          users: new Set([user]),
+          dataChannel: null,
         };
         peers.set(user.info.userId, newState);
 
         // Send local ICE candidates to this peer
         newState.pc.onicecandidate = (ev) => {
-            if (!ev.candidate) return;
-            for(let user of newState.users) {
-                const success = user.receive("ice", ev.candidate.toJSON());
-                if (success) break;
-                newState.users.delete(user);
-            }
+          if (!ev.candidate) return;
+          for(let user of newState.users) {
+              const success = user.receive("ice", ev.candidate.toJSON());
+              if (success) break;
+              newState.users.delete(user);
+          }
         };
             
         // Responder receives DataChannel here
         newState.pc.ondatachannel = (ev) => {
-            newState.dataChannel = ev.channel;
-            wireDataChannel(newState);
+          newState.dataChannel = ev.channel;
+          wireDataChannel(newState);
         };
         newState.pc.onconnectionstatechange = () => {
-        logLine("ℹ️", { event: "pc-state", userId: newState.userId, state: newState.pc.connectionState });
+          logLine("ℹ️", { event: "pc-state", userId: newState.userId, state: newState.pc.connectionState });
         };
         state = newState;
     } else {
@@ -99,10 +95,6 @@ export function joinWebRTCRoom({
     }
     peers.set(state.userId, state);
     return state;
-  }
-
-  function ensurePeer(user: IUser<SigType, SigPayload>): PeerState {
-    return getPeer(user);
   }
 
   enterRoom<SigType, SigPayload>({
@@ -113,10 +105,8 @@ export function joinWebRTCRoom({
 
     // Existing peers initiate to the newcomer (Option 1)
     onPeerJoined: async (user) => {
-      const state = ensurePeer(user);
+      const state = getPeer(user);
       const pc = state.pc;
-
-      // if (state.started) return; // already started negotiation
 
       // Initiator creates the DataChannel
       if (!state.dataChannel) {
@@ -127,13 +117,12 @@ export function joinWebRTCRoom({
       // Offer flow: createOffer -> setLocalDescription -> send localDescription
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      state.started = true;
 
       user.receive("offer", pc.localDescription!);
     },
 
     onMessage: async (type, payload, from) => {
-      const state = ensurePeer(from);
+      const state = getPeer(from);
       const pc = state.pc;
 
       if (type === "offer") {
