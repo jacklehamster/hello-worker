@@ -4,7 +4,7 @@ type SigType = "offer" | "answer" | "ice";
 type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
 
 type PeerState = {
-  id: string;
+  userId: string;
   pc: RTCPeerConnection;
 
   // ICE that arrived before we had remoteDescription
@@ -14,16 +14,18 @@ type PeerState = {
   started: boolean;
 
   // the signaling "user" handle so we can send messages
-  user: IUser<SigType, SigPayload>;
+  users: Set<IUser<SigType, SigPayload>>;
 
   dataChannel: RTCDataChannel | null;
 };
 
 export function joinWebRTCRoom({
+  userId,
   room,
   host,
   logLine,
 }: {
+  userId: string;
   room: string;
   host: string;
   logLine: (direction: string, obj?: any) => void;
@@ -38,11 +40,11 @@ export function joinWebRTCRoom({
     const dc = state.dataChannel;
     if (!dc) return;
 
-    dc.onopen = () => logLine("ℹ️", { event: "dc-open", peerId: state.id });
+    dc.onopen = () => logLine("ℹ️", { event: "dc-open", userId: state.userId });
     dc.onmessage = (e) =>
-      logLine("ℹ️", { event: "dc-message", peerId: state.id, data: e.data });
-    dc.onclose = () => logLine("ℹ️", { event: "dc-close", peerId: state.id });
-    dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", peerId: state.id });
+      logLine("ℹ️", { event: "dc-message", userId: state.userId, data: e.data });
+    dc.onclose = () => logLine("ℹ️", { event: "dc-close", userId: state.userId });
+    dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId: state.userId });
   }
 
   async function flushRemoteIce(state: PeerState) {
@@ -55,49 +57,56 @@ export function joinWebRTCRoom({
       try {
         await state.pc.addIceCandidate(ice);
       } catch (e) {
-        logLine("⚠️ ERROR", { error: "add-ice-failed", peerId: state.id, detail: String(e) });
+        logLine("⚠️ ERROR", { error: "add-ice-failed", userId: state.userId, detail: String(e) });
       }
     }
   }
 
-  function createPeer(user: IUser<SigType, SigPayload>): PeerState {
-    const peerId = user.id;
-    const pc = new RTCPeerConnection(rtcConfig);
+  function getPeer(user: IUser<SigType, SigPayload>): PeerState {
+    let state = peers.get(user.info.userId);
+    if (!state) {
+        const newState: PeerState = {
+            userId: user.info.userId,
+            pc: new RTCPeerConnection(rtcConfig),
+            pendingRemoteIce: [],
+            started: false,
+            users: new Set([user]),
+            dataChannel: null,
+        };
+        peers.set(user.info.userId, newState);
 
-    const state: PeerState = {
-      id: peerId,
-      pc,
-      pendingRemoteIce: [],
-      started: false,
-      user,
-      dataChannel: null,
-    };
-
-    // Send local ICE candidates to this peer
-    pc.onicecandidate = (ev) => {
-      if (!ev.candidate) return;
-      user.receive("ice", ev.candidate.toJSON());
-    };
-
-    // Responder receives DataChannel here
-    pc.ondatachannel = (ev) => {
-      state.dataChannel = ev.channel;
-      wireDataChannel(state);
-    };
-
-    pc.onconnectionstatechange = () => {
-      logLine("ℹ️", { event: "pc-state", peerId, state: pc.connectionState });
-    };
-
-    peers.set(peerId, state);
+        // Send local ICE candidates to this peer
+        newState.pc.onicecandidate = (ev) => {
+            if (!ev.candidate) return;
+            for(let user of newState.users) {
+                const success = user.receive("ice", ev.candidate.toJSON());
+                if (success) break;
+                newState.users.delete(user);
+            }
+        };
+            
+        // Responder receives DataChannel here
+        newState.pc.ondatachannel = (ev) => {
+            newState.dataChannel = ev.channel;
+            wireDataChannel(newState);
+        };
+        newState.pc.onconnectionstatechange = () => {
+        logLine("ℹ️", { event: "pc-state", userId: newState.userId, state: newState.pc.connectionState });
+        };
+        state = newState;
+    } else {
+      state.users.add(user);
+    }
+    peers.set(state.userId, state);
     return state;
   }
 
   function ensurePeer(user: IUser<SigType, SigPayload>): PeerState {
-    return peers.get(user.id) ?? createPeer(user);
+    return getPeer(user);
   }
 
   enterRoom<SigType, SigPayload>({
+    userId: userId,
     room,
     host,
     logLine,
@@ -106,6 +115,8 @@ export function joinWebRTCRoom({
     onPeerJoined: async (user) => {
       const state = ensurePeer(user);
       const pc = state.pc;
+
+      if (state.started) return; // already started negotiation
 
       // Initiator creates the DataChannel
       if (!state.dataChannel) {
@@ -159,15 +170,15 @@ export function joinWebRTCRoom({
         try {
           await pc.addIceCandidate(ice);
         } catch (e) {
-          logLine("⚠️ ERROR", { error: "add-ice-failed", peerId: state.id, detail: String(e) });
+          logLine("⚠️ ERROR", { error: "add-ice-failed", userId: state.userId, detail: String(e) });
         }
         return;
       }
     },
   });
 
-  const sendToPeer = (peerId: string, data: string) => {
-    const p = peers.get(peerId);
+  const sendToUser = (userId: string, data: string) => {
+    const p = peers.get(userId);
     if (!p) return;
     if (p.dataChannel?.readyState === "open") p.dataChannel.send(data);
   };
@@ -175,18 +186,18 @@ export function joinWebRTCRoom({
   return {
     peers,
     // optional helper to broadcast on data channels
-    sendToPeer,
+    sendToPeer: sendToUser,
     sendToAll: (data: string) => {
       for (const p of peers.values()) {
-        sendToPeer(p.id, data);
+        sendToUser(p.userId, data);
       }
     },
-    closePeer: (peerId: string) => {
-      const p = peers.get(peerId);
+    leaveUser: (userId: string) => {
+      const p = peers.get(userId);
       if (!p) return;
       try { p.dataChannel?.close(); } catch {}
       try { p.pc.close(); } catch {}
-      peers.delete(peerId);
+      peers.delete(userId);
     },
     exitRoom: () => {
       for (const p of peers.values()) {

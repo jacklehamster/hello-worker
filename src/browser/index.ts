@@ -8,6 +8,12 @@ const statusEl = document.getElementById("status")!;
 const logEl = document.getElementById("log")!;
 const welcomeEl = document.getElementById("welcome") as HTMLInputElement;
 
+const userId = localStorage.getItem("clientId") || (() => {
+    const id = crypto.randomUUID();
+    localStorage.setItem("clientId", id);
+    return id;
+})();
+
 function ts() {
     // HH:MM:SS.mmm (local time)
     const d = new Date();
@@ -27,6 +33,7 @@ export function clearLog() {
 
 export function testWelcome() {
     const { exitRoom } = enterRoom({
+        userId,
         room: "test",
         host: location.host,
         onOpen: () => {
@@ -102,6 +109,7 @@ export function testWebRTC() {
   logLine("ℹ️", { event: "start-webrtc-test" });
 
   const session = joinWebRTCRoom({
+    userId,
     room: "test",
     host: location.host,
     logLine,

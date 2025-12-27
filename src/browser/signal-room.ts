@@ -1,6 +1,6 @@
 export interface IUser<T extends string = string, P = any> {
-    id: string;
-    receive(type: T, payload: P): void;
+    info: { peerId: string; userId: string };
+    receive(type: T, payload: P): boolean;
 }
 
 /**
@@ -18,6 +18,7 @@ export interface IUser<T extends string = string, P = any> {
  * });
  */
 export function enterRoom<T extends string, P = any>({
+    userId,
     room,
     host,
     onOpen,
@@ -27,6 +28,7 @@ export function enterRoom<T extends string, P = any>({
     onPeerJoined,
     onMessage,
 }: {
+    userId: string;
     room: string;
     host: string;
     onOpen?: () => void;
@@ -36,21 +38,16 @@ export function enterRoom<T extends string, P = any>({
     onPeerJoined?: (user: IUser) => void;
     onMessage?: (type: T, payload: P, from: IUser) => void;
 }) {
-    const wsUrl = "wss://" + host + "/room/" + room;
+    const wsUrl = "wss://" + host + "/room/" + room + "?userId=" + encodeURIComponent(userId);
     const ws = new WebSocket(wsUrl);
 
+    let exited = false;
     function send(type: T, to: string, payload: P) {
+        if (exited) return false;
         const obj = { type, to, payload };
         ws.send(JSON.stringify(obj));
         logLine?.("👤 ➡️ 🖥️", obj);
-    }
-
-    class User implements IUser<T, P> {
-        constructor(public id: string) {}
-
-        receive(type: T, payload: P) {
-            send(type, this.id, payload);
-        }
+        return true;
     }
 
     function onmessage(e: MessageEvent) {
@@ -61,11 +58,23 @@ export function enterRoom<T extends string, P = any>({
         logLine?.("🖥️ ➡️ 👤", msg);
 
         // Existing client greets newcomers
-        if (msg.type === "peer-joined" && msg.peerId) {
-            onPeerJoined?.(new User(msg.peerId));
+        if (msg.type === "peer-joined" && msg.peerId && msg.userId) {
+            onPeerJoined?.({
+                info: { peerId: msg.peerId, userId: msg.userId },
+                receive: (type: T, payload: P) => {
+                    return send(type, msg.peerId, payload);
+                },
+            });
             return;
         }
-        onMessage?.(msg.type, msg.payload, new User(msg.from));
+        if (msg.from.peerId && msg.from.userId) {
+            onMessage?.(msg.type, msg.payload, {
+                info:{ peerId: msg.from.peerId, userId: msg.from.userId },
+                receive: (type: T, payload: P) => {
+                    return send(type, msg.peerId, payload);
+                },
+            });
+        }
     };
 
     ws.addEventListener("message", onmessage);
@@ -74,6 +83,7 @@ export function enterRoom<T extends string, P = any>({
     if (onError) ws.addEventListener("error", onError);
     return {
         exitRoom: () => {
+            exited = true;
             ws.close();
             ws.removeEventListener("message", onmessage);
             if (onOpen) ws.removeEventListener("open", onOpen);

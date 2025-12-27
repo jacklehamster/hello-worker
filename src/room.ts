@@ -6,14 +6,14 @@ type AnyJson =
   | AnyJson[]
   | { [k: string]: AnyJson };
 
-type Attachment = { peerId: string };
+type Attachment = { peerId: string; userId: string };
 
-function getPeerId(ws: WebSocket): string | undefined {
+function getAttachment(ws: WebSocket): Attachment | null {
   try {
     const a = ws.deserializeAttachment() as Attachment | null;
-    return a?.peerId;
+    return a ;
   } catch {
-    return undefined;
+    return null;
   }
 }
 
@@ -22,7 +22,11 @@ export class Room implements DurableObject {
     void env;
   }
 
-  async fetch(_req: Request): Promise<Response> {
+  async fetch(req: Request): Promise<Response> {
+    const userId = new URL(req.url).searchParams.get("userId");
+    if (!userId) {
+      return new Response("Missing userId", { status: 400 });
+    }
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
@@ -32,15 +36,15 @@ export class Room implements DurableObject {
 
     // Persist peerId via attachment (survives hibernation)
     const peerId = crypto.randomUUID();
-    server.serializeAttachment({ peerId } satisfies Attachment);
+    server.serializeAttachment({ peerId, userId } satisfies Attachment);
 
-    console.log(`Room ${this.state.id.toString()} got new peer: ${peerId}`);
+    console.log(`Room ${this.state.id.toString()} got new peer: ${peerId} (userId=${userId})`);
 
     // Notify existing peers about the newcomer
     for (const ws of this.state.getWebSockets()) {
       if (ws === server) continue;
       try {
-        ws.send(JSON.stringify({ type: "peer-joined", peerId }));
+        ws.send(JSON.stringify({ type: "peer-joined", peerId, userId }));
       } catch {}
     }
 
@@ -48,10 +52,10 @@ export class Room implements DurableObject {
   }
 
   webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
-    const from = getPeerId(ws);
-    console.log(`Room ${this.state.id.toString()} got message from ${from}:`, message);
+    const attachment = getAttachment(ws);
+    console.log(`Room ${this.state.id.toString()} got message from ${attachment}:`, message);
 
-    if (!from) {
+    if (!attachment) {
       // This should not happen after the attachment fix,
       // but keep a helpful error if it does.
       try {
@@ -83,12 +87,12 @@ export class Room implements DurableObject {
 
       const out = {
         type: msg.type,
-        from,
+        from: attachment,
         payload: msg.payload ?? null,
       };
 
       for (const other of this.state.getWebSockets()) {
-        if (getPeerId(other) === toPeerId) {
+        if (getAttachment(other)?.peerId === toPeerId) {
           try {
             other.send(JSON.stringify(out));
           } catch {}
@@ -104,12 +108,12 @@ export class Room implements DurableObject {
   }
 
   webSocketClose(ws: WebSocket) {
-    const peerId = getPeerId(ws);
+    const peerId = getAttachment(ws);
     console.log(`Room ${this.state.id.toString()} peer disconnected: ${peerId}`);
   }
 
   webSocketError(ws: WebSocket, err: unknown) {
-    const peerId = getPeerId(ws);
+    const peerId = getAttachment(ws);
     console.log(`Room ${this.state.id.toString()} ws error for peer ${peerId}:`, err);
   }
 }
