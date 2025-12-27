@@ -18,11 +18,41 @@
   <textarea id="welcome">Hello 👋 welcome friend!</textarea>
 
   <h3>Log (one line per network message)</h3>
-  <div id="log"></div>
+  <div id="log" style="transition: scroll 500ms"></div>
+  <div style="display: flex; flex-direction: row; gap: 10px; margin-top: 10px;">
+    <button id="clear-log">Clear log</button>
+    <button id="welcome-button" disabled>welcome</button>
+    <button id="webrtc-button">test webRTC</button>
+  </div>
 
   <script type="module">
-    import { testWelcome } from "./index.js";
-    testWelcome();
+    import { testWelcome, clearLog } from "./index.js";
+
+    let onExit;
+    function setupWelcome() {
+      document.getElementById("welcome-button").disabled = true;
+      document.getElementById("webrtc-button").disabled = false;
+      onExit = testWelcome();
+    }
+    function setWebRTC() {   
+      document.getElementById("welcome-button").disabled = false;
+      document.getElementById("webrtc-button").disabled = true;
+      onExit = null;   
+    }
+
+    setupWelcome();
+
+    document.getElementById("clear-log").onclick = () => {
+      clearLog();
+    };
+    document.getElementById("welcome-button").onclick = () => {
+      onExit?.();
+      setupWelcome();
+    };
+    document.getElementById("webrtc-button").onclick = () => {
+      onExit?.();
+      setWebRTC();
+    };
   </script>
 </body>
 </html>
