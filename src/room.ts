@@ -65,7 +65,11 @@ export class Room implements DurableObject {
       return;
     }
 
-    let msg: any;
+    let msg: {
+      to?: string;
+      type?: string;
+      payload?: AnyJson;
+    };
     try {
       msg = JSON.parse(message);
     } catch {
