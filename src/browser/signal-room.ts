@@ -1,4 +1,5 @@
-interface IUser<T extends string = string, P = any> {
+export interface IUser<T extends string = string, P = any> {
+    id: string;
     receive(type: T, payload: P): void;
 }
 
@@ -6,14 +7,14 @@ interface IUser<T extends string = string, P = any> {
  * enterRoom connects to the signaling room via WebSocket.
  * 
  * Usage:
- *  const { send, dispose } = enterRoom({
+ *  const { exitRoom } = enterRoom({
  *      room: "test",
  *      host: location.host,
  *      onOpen: () => { ... },
  *      onClose: () => { ... },
  *      onError: () => { ... },
- *      onPeerJoined: (peerId) => { ... },
- *      onMessage: (type, from, payload) => { ... },
+ *      onPeerJoined: (user) => { ... },
+ *      onMessage: (type, payload, fromUser) => { ... },
  * });
  */
 export function enterRoom<T extends string, P = any>({
@@ -64,7 +65,6 @@ export function enterRoom<T extends string, P = any>({
             onPeerJoined?.(new User(msg.peerId));
             return;
         }
-        console.log(msg);
         onMessage?.(msg.type, msg.payload, new User(msg.from));
     };
 

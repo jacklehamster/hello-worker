@@ -26,7 +26,7 @@
   </div>
 
   <script type="module">
-    import { testWelcome, clearLog } from "./index.js";
+    import { testWelcome, testWebRTC, clearLog } from "./index.js";
 
     let onExit;
     function setupWelcome() {
@@ -37,7 +37,7 @@
     function setWebRTC() {   
       document.getElementById("welcome-button").disabled = false;
       document.getElementById("webrtc-button").disabled = true;
-      onExit = null;   
+      onExit = testWebRTC();   
     }
 
     setupWelcome();
