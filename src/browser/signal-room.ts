@@ -74,11 +74,11 @@ export function enterRoom<T extends string, P = any>({
     if (onError) ws.addEventListener("error", onError);
     return {
         exitRoom: () => {
+            ws.close();
             ws.removeEventListener("message", onmessage);
             if (onOpen) ws.removeEventListener("open", onOpen);
             if (onClose) ws.removeEventListener("close", onClose);
             if (onError) ws.removeEventListener("error", onError);
-            ws.close();
         },
     };
 }
