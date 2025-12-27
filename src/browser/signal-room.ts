@@ -42,9 +42,9 @@ export function enterRoom<T extends string, P = any>({
     const ws = new WebSocket(wsUrl);
 
     let exited = false;
-    function send(type: T, to: string, payload: P) {
+    function send(type: T, toPeerId: string, payload: P) {
         if (exited) return false;
-        const obj = { type, to, payload };
+        const obj = { type, to: toPeerId, payload };
         ws.send(JSON.stringify(obj));
         logLine?.("👤 ➡️ 🖥️", obj);
         return true;
@@ -69,7 +69,7 @@ export function enterRoom<T extends string, P = any>({
         }
         if (msg.from.peerId && msg.from.userId) {
             onMessage?.(msg.type, msg.payload, {
-                info:{ peerId: msg.from.peerId, userId: msg.from.userId },
+                info: { peerId: msg.from.peerId, userId: msg.from.userId },
                 receive: (type: T, payload: P) => {
                     return send(type, msg.peerId, payload);
                 },
