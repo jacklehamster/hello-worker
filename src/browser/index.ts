@@ -6,7 +6,7 @@ import { joinWebRTCRoom } from "./webrtc-room.js";
 
 const statusEl = document.getElementById("status")!;
 const logEl = document.getElementById("log")!;
-const welcomeEl = document.getElementById("welcome") as HTMLTextAreaElement;
+const welcomeEl = document.getElementById("welcome") as HTMLInputElement;
 
 function ts() {
     // HH:MM:SS.mmm (local time)
@@ -73,6 +73,7 @@ export function testWebRTC() {
     stageEl.style.touchAction = "none";
     document.body.insertBefore(stageEl, welcomeEl);
   }
+  welcomeEl.classList.add("hidden");
 
   let emojiEl = document.getElementById("emoji") as HTMLDivElement | null;
   if (!emojiEl) {
@@ -178,6 +179,7 @@ export function testWebRTC() {
     window.clearInterval(interval);
     stageEl!.removeEventListener("pointermove", onPointerMove);
     stageEl!.remove();
+    welcomeEl.classList.remove("hidden");
     session.exitRoom?.();
     logLine("ℹ️", { event: "stop-webrtc-test" });
   };

@@ -8,6 +8,7 @@
     #log { background:#111; color:#0f0; padding:10px; height:260px; overflow:auto; white-space:pre; }
     textarea { width: 100%; height: 80px; }
     input, button, textarea { font-size: 14px; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
@@ -15,7 +16,7 @@
   <p>Status: <b id="status">connecting…</b></p>
 
   <h3>Welcome note (sent to newcomers)</h3>
-  <textarea id="welcome">Hello 👋 welcome friend!</textarea>
+  <input id="welcome">Hello 👋 welcome friend!</input>
 
   <h3>Log (one line per network message)</h3>
   <div id="log" style="transition: scroll 500ms"></div>
@@ -24,6 +25,11 @@
     <button id="welcome-button" disabled>welcome</button>
     <button id="webrtc-button">test webRTC</button>
   </div>
+
+  <div>
+    <a href="" target="_blank">Open this page in a new window</a>
+  </div>
+
 
   <script type="module">
     import { testWelcome, testWebRTC, clearLog } from "./index.js";
