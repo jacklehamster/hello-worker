@@ -20,31 +20,34 @@ function logLine(direction: string, obj?: any) {
     logEl.scrollTop = logEl.scrollHeight;
 }
 
-
-const { send, dispose } = enterRoom({
-    room: "test",
-    host: location.host,
-    onOpen: () => {
-        statusEl.textContent = "connected";
-        logLine("🔗  CONNECTED");
-    },
-    onClose: () => {
-        statusEl.textContent = "closed";
-        logLine("⛓️‍💥  DISCONNECTED");
-        statusEl.textContent = "closed";
-    },
-    onError: () => {
-        statusEl.textContent = "error";
-        logLine("⚠️ ERROR");
-    },
-    onPeerJoined: (peerId: string) => {
-        send("welcome", peerId, { note: welcomeEl.value });
-    },
-    onMessage: (type, from, _payload) => {
-        console.log(type, from, _payload);
-        if (type === "welcome" && from) {
-            send("thanks", from, { note: "Thank you! 🙏" });
-        }
-    },
-    logLine,
-});
+function testWelcome() {
+    const { exitRoom } = enterRoom({
+        room: "test",
+        host: location.host,
+        onOpen: () => {
+            statusEl.textContent = "connected";
+            logLine("🔗  CONNECTED");
+        },
+        onClose: () => {
+            statusEl.textContent = "closed";
+            logLine("⛓️‍💥  DISCONNECTED");
+            statusEl.textContent = "closed";
+        },
+        onError: () => {
+            statusEl.textContent = "error";
+            logLine("⚠️ ERROR");
+        },
+        onPeerJoined: (user) => {
+            user.receive("welcome", { note: welcomeEl.value });
+        },
+        onMessage: (type, payload, user) => {
+            if (type === "welcome") {
+                user.receive("thanks", { note: "Thank you! 🙏" });
+            }
+        },
+        logLine,
+    });
+    return () => {
+        return exitRoom;
+    };
+}
