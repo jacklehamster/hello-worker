@@ -20,7 +20,7 @@ function logLine(direction: string, obj?: any) {
     logEl.scrollTop = logEl.scrollHeight;
 }
 
-function testWelcome() {
+export function testWelcome() {
     const { exitRoom } = enterRoom({
         room: "test",
         host: location.host,
