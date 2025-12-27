@@ -8,11 +8,7 @@ const statusEl = document.getElementById("status")!;
 const logEl = document.getElementById("log")!;
 const welcomeEl = document.getElementById("welcome") as HTMLInputElement;
 
-const userId = localStorage.getItem("clientId") || (() => {
-    const id = crypto.randomUUID();
-    localStorage.setItem("clientId", id);
-    return id;
-})();
+const userId = crypto.randomUUID();
 
 function ts() {
     // HH:MM:SS.mmm (local time)

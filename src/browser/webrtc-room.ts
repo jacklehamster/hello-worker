@@ -116,7 +116,7 @@ export function joinWebRTCRoom({
       const state = ensurePeer(user);
       const pc = state.pc;
 
-      if (state.started) return; // already started negotiation
+      // if (state.started) return; // already started negotiation
 
       // Initiator creates the DataChannel
       if (!state.dataChannel) {
