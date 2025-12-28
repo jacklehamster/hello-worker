@@ -1,3 +1,5 @@
+import { WebSocket, DurableObject, DurableObjectState, Request, Response, WebSocketPair } from "@cloudflare/workers-types";
+
 type AnyJson =
   | null
   | boolean
@@ -14,7 +16,7 @@ function getAttachment(ws: WebSocket): Attachment | null {
     return a ;
   } catch {
     return null;
-  }
+  };
 }
 
 export class Room implements DurableObject {
