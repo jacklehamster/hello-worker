@@ -1,6 +1,6 @@
 {
   "name": "@dobuki/hello-worker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,10 +9,18 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./browser/webrtc-room": { "types": "./dist/webrtc-room.d.ts", "default": "./dist/webrtc-room.js" },
-    "./browser/signal-room": { "types": "./dist/signal-room.d.ts", "default": "./dist/signal-room.js" }
+    "./browser/webrtc-room": {
+      "types": "./dist/webrtc-room.d.ts",
+      "default": "./dist/webrtc-room.js"
+    },
+    "./browser/signal-room": {
+      "types": "./dist/signal-room.d.ts",
+      "default": "./dist/signal-room.js"
+    }
   },
-  "files": ["dist"],  
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "wrangler dev src/index.ts --config wrangler.dev.toml",
     "deploy": "wrangler deploy",
