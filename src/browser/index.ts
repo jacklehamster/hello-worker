@@ -106,9 +106,11 @@ export function testWebRTC() {
 
   const session = joinWebRTCRoom({
     userId,
+    logLine,
+  });
+  session.enter({
     room: "test",
     host: location.host,
-    logLine,
   });
 
   // --- send mouse position over all open data channels ---
@@ -184,7 +186,7 @@ export function testWebRTC() {
     stageEl!.removeEventListener("pointermove", onPointerMove);
     stageEl!.remove();
     welcomeEl.classList.remove("hidden");
-    session.exitRoom?.();
+    session.end();
     logLine("ℹ️", { event: "stop-webrtc-test" });
   };
 }

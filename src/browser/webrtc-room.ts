@@ -18,13 +18,9 @@ type PeerState = {
 
 export function joinWebRTCRoom({
   userId,
-  room,
-  host,
   logLine,
 }: {
   userId: string;
-  room: string;
-  host: string;
   logLine: (direction: string, obj?: any) => void;
 }) {
   const rtcConfig: RTCConfiguration = {
@@ -97,74 +93,87 @@ export function joinWebRTCRoom({
     return state;
   }
 
-  enterRoom<SigType, SigPayload>({
-    userId: userId,
-    room,
-    host,
-    logLine,
+  const roomsEntered = new Map<string, { host: string; room: string; exitRoom: () => void }>();
+  function enter({ room, host }: { room: string; host: string; }) {
+    const { exitRoom } = enterRoom<SigType, SigPayload>({
+      userId,
+      room,
+      host,
+      logLine,
 
-    // Existing peers initiate to the newcomer (Option 1)
-    onPeerJoined: async (user) => {
-      const state = getPeer(user);
-      const pc = state.pc;
+      // Existing peers initiate to the newcomer (Option 1)
+      onPeerJoined: async (user) => {
+        const state = getPeer(user);
+        const pc = state.pc;
 
-      // Initiator creates the DataChannel
-      if (!state.dataChannel) {
-        state.dataChannel = pc.createDataChannel("data");
-        wireDataChannel(state);
-      }
+        // Initiator creates the DataChannel
+        if (!state.dataChannel) {
+          state.dataChannel = pc.createDataChannel("data");
+          wireDataChannel(state);
+        }
 
-      // Offer flow: createOffer -> setLocalDescription -> send localDescription
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+        // Offer flow: createOffer -> setLocalDescription -> send localDescription
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
 
-      user.receive("offer", pc.localDescription!);
-    },
+        user.receive("offer", pc.localDescription!);
+      },
 
-    onMessage: async (type, payload, from) => {
-      const state = getPeer(from);
-      const pc = state.pc;
+      onMessage: async (type, payload, from) => {
+        const state = getPeer(from);
+        const pc = state.pc;
 
-      if (type === "offer") {
-        // Responder: set remote offer
-        await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
+        if (type === "offer") {
+          // Responder: set remote offer
+          await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
 
-        // Create and send answer
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
+          // Create and send answer
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
 
-        from.receive("answer", pc.localDescription!);
+          from.receive("answer", pc.localDescription!);
 
-        // Now safe to apply any queued ICE from this peer
-        await flushRemoteIce(state);
-        return;
-      }
-
-      if (type === "answer") {
-        // Initiator: set remote answer
-        await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
-        await flushRemoteIce(state);
-        return;
-      }
-
-      if (type === "ice") {
-        const ice = payload as RTCIceCandidateInit;
-
-        // If we don't have remoteDescription yet, queue it
-        if (!pc.remoteDescription) {
-          state.pendingRemoteIce.push(ice);
+          // Now safe to apply any queued ICE from this peer
+          await flushRemoteIce(state);
           return;
         }
 
-        try {
-          await pc.addIceCandidate(ice);
-        } catch (e) {
-          logLine("⚠️ ERROR", { error: "add-ice-failed", userId: state.userId, detail: String(e) });
+        if (type === "answer") {
+          // Initiator: set remote answer
+          await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
+          await flushRemoteIce(state);
+          return;
         }
-        return;
-      }
-    },
-  });
+
+        if (type === "ice") {
+          const ice = payload as RTCIceCandidateInit;
+
+          // If we don't have remoteDescription yet, queue it
+          if (!pc.remoteDescription) {
+            state.pendingRemoteIce.push(ice);
+            return;
+          }
+
+          try {
+            await pc.addIceCandidate(ice);
+          } catch (e) {
+            logLine("⚠️ ERROR", { error: "add-ice-failed", userId: state.userId, detail: String(e) });
+          }
+          return;
+        }
+      },
+    });
+    roomsEntered.set(`${host}/room/${room}`, { exitRoom, host, room });
+  }
+
+  function exit({ room, host }: { room: string; host: string; }) {
+    const key = `${host}/room/${room}`;
+    const session = roomsEntered.get(key);
+    if (session) {
+      session.exitRoom();
+      roomsEntered.delete(key);
+    }
+  }
 
   const sendToUser = (userId: string, data: string) => {
     const p = peers.get(userId);
@@ -174,13 +183,7 @@ export function joinWebRTCRoom({
 
   return {
     peers,
-    // optional helper to broadcast on data channels
-    sendToPeer: sendToUser,
-    sendToAll: (data: string) => {
-      for (const p of peers.values()) {
-        sendToUser(p.userId, data);
-      }
-    },
+    sendToUser,
     leaveUser: (userId: string) => {
       const p = peers.get(userId);
       if (!p) return;
@@ -188,12 +191,18 @@ export function joinWebRTCRoom({
       try { p.pc.close(); } catch {}
       peers.delete(userId);
     },
-    exitRoom: () => {
+    end: () => {
+      roomsEntered.values().forEach(({ exitRoom }) => exitRoom());
+      roomsEntered.clear();
+
       for (const p of peers.values()) {
         try { p.dataChannel?.close(); } catch {}
         try { p.pc.close(); } catch {}
       }
+
       peers.clear();
     },
+    enter,
+    exit,
   };
 }
