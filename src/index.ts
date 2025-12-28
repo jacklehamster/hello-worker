@@ -1,3 +1,5 @@
+import { Fetcher, DurableObjectNamespace, Response,Request } from "@cloudflare/workers-types";
+
 export interface Env {
   ROOM: DurableObjectNamespace;
   ASSETS: Fetcher;
