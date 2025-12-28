@@ -12,8 +12,7 @@ type Attachment = { peerId: string; userId: string };
 
 function getAttachment(ws: WebSocket): Attachment | null {
   try {
-    const a = ws.deserializeAttachment() as Attachment | null;
-    return a ;
+    return ws.deserializeAttachment() as Attachment | null;
   } catch {
     return null;
   };

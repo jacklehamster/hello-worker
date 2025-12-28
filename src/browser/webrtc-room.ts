@@ -22,10 +22,12 @@ export function joinWebRTCRoom({
   onMessage,
   logLine = console.log,
   enterRoom = DEFAULT_ENTER_ROOM,
+  workerUrl,
 }: {
   onMessage?: (data: any, from: string) => void;
   logLine?: (direction: string, obj?: any) => void;
   enterRoom?: EnterRoom<SigType, SigPayload>;
+  workerUrl?: URL;
 }) {
   const userId = crypto.randomUUID();
   const rtcConfig: RTCConfiguration = {
