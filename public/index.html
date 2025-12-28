@@ -13,7 +13,11 @@
 </head>
 <body>
   <h1>Welcome Note Test</h1>
-  <p>Status: <b id="status">connecting…</b></p>
+  <div style="display: flex; flex-direction: row; gap: 10px">
+    <div>Status: <b id="status">connecting…</b></div>
+    <button id="disconnect-button">Disconnect</button>
+    <button id="reconnect-button" class="hidden">Reconnect</button>
+  </div>
 
   <h3>Welcome note (sent to newcomers)</h3>
   <input id="welcome" size="80" value="Hello 👋 welcome friend!"></input>
@@ -34,6 +38,7 @@
   <script type="module">
     import { testWelcome, testWebRTC, clearLog } from "./sample.js";
 
+    let connected = false;
     let onExit;
     function setupWelcome() {
       location.hash = "";
@@ -50,12 +55,26 @@
       onExit = testWebRTC();   
     }
 
-    if (location.hash === "#webrtc") {
-      setWebRTC();
-    } else {
-      setupWelcome();
+    function connect() {
+      if (location.hash === "#webrtc") {
+        setWebRTC();
+      } else {
+        setupWelcome();
+      }
     }
 
+    document.getElementById("disconnect-button").onclick = () => {
+      onExit?.();
+      document.getElementById("status").textContent = "disconnected";
+      document.getElementById("disconnect-button").classList.add("hidden");
+      document.getElementById("reconnect-button").classList.remove("hidden");
+    };
+    document.getElementById("reconnect-button").onclick = () => {
+      connect();
+      document.getElementById("status").textContent = "connecting…";
+      document.getElementById("disconnect-button").classList.remove("hidden");
+      document.getElementById("reconnect-button").classList.add("hidden");
+    };
     document.getElementById("clear-log").onclick = () => {
       clearLog();
     };
