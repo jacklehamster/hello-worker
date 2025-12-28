@@ -39,7 +39,7 @@ export function enterRoom<T extends string, P = any>({
   workerUrl?: URL;
 }): { exitRoom: () => void } {
     if (!workerUrl) {
-        const CDN_WORKER_URL = `https://cdn.jsdelivr.net/npm/@dobuki/hello-worker@${__VERSION__}/dist/signal-room.worker.js`;
+        const CDN_WORKER_URL = `https://cdn.jsdelivr.net/npm/@dobuki/hello-worker@${__VERSION__}/dist/signal-room.worker.min.js`;
 
         console.warn("Warning: enterRoom called without workerUrl; this may cause issues in some environments. You should pass workerUrl explicitly. Use:", CDN_WORKER_URL);
         return baseEnterRoom<T, P>({
