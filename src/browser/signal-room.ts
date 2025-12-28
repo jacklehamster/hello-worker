@@ -65,7 +65,12 @@ export function enterRoom<T extends string, P = any>({
     const ev = e.data;
 
     if (ev.kind === "open") onOpen?.();
-    else if (ev.kind === "close") onClose?.();
+    else if (ev.kind === "close") {
+      exited = true;
+      worker.removeEventListener("message", onWorkerMessage);
+      worker.terminate();
+      onClose?.();
+    }
     else if (ev.kind === "error") onError?.();
     else if (ev.kind === "peer-joined") onPeerJoined?.(makeUser({ userId: ev.userId, peerId: ev.peerId }));
     else if (ev.kind === "peer-left") onPeerLeft?.(ev.userId, ev.peerId);
@@ -79,10 +84,7 @@ export function enterRoom<T extends string, P = any>({
 
   return {
     exitRoom: () => {
-      exited = true;
       worker.postMessage({ cmd: "exit" });
-      worker.removeEventListener("message", onWorkerMessage);
-      worker.terminate();
     },
   };
 }
