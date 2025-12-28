@@ -27,6 +27,7 @@ function emit<T extends string, P>(ev: RoomEvent<T, P>) {
 
 self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
   const msg = e.data;
+  console.log("[signal-room.worker] received command", msg);
 
   if (msg.cmd === "enter") {
     // If re-entering, clean up first
