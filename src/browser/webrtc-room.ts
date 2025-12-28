@@ -1,4 +1,4 @@
-import { enterRoom, IUser } from "./signal-room";
+import { EnterRoom, IUser } from "./signal-room";
 
 type SigType = "offer" | "answer" | "ice";
 type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
@@ -19,9 +19,11 @@ type PeerState = {
 export function joinWebRTCRoom({
   userId,
   logLine,
+  enterRoom,
 }: {
   userId: string;
   logLine: (direction: string, obj?: any) => void;
+  enterRoom: EnterRoom<SigType, SigPayload>;
 }) {
   const rtcConfig: RTCConfiguration = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -104,7 +106,7 @@ export function joinWebRTCRoom({
 
   const roomsEntered = new Map<string, { host: string; room: string; exitRoom: () => void }>();
   function enter({ room, host }: { room: string; host: string; }) {
-    const { exitRoom } = enterRoom<SigType, SigPayload>({
+    const { exitRoom } = enterRoom({
       userId,
       room,
       host,

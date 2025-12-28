@@ -87,7 +87,8 @@ export class Room implements DurableObject {
 
       const out = {
         type: msg.type,
-        from: attachment,
+        userId: attachment.userId,
+        peerId: attachment.peerId,
         payload: msg.payload ?? null,
       };
 

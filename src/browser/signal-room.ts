@@ -3,6 +3,19 @@ export interface IUser<T extends string = string, P = any> {
     receive(type: T, payload: P): boolean;
 }
 
+export type EnterRoom<T extends string = string, P = any> = (options: {
+    userId: string;
+    room: string;
+    host: string;
+    onOpen?: () => void;
+    onClose?: () => void;
+    onError?: () => void;
+    logLine?: (direction: string, obj?: any) => void;
+    onPeerJoined?: (user: IUser<T, P>) => void;
+    onPeerLeft?: (info: IUser["info"]) => void;
+    onMessage?: (type: T, payload: P, from: IUser<T, P>) => void;
+}) => { exitRoom: () => void };
+
 /**
  * enterRoom connects to the signaling room via WebSocket.
  * 
@@ -53,9 +66,17 @@ export function enterRoom<T extends string, P = any>({
     }
 
     function onmessage(e: MessageEvent) {
-        let msg;
+        let msg: {
+            type: T;
+            peerId: string;
+            userId: string;
+            payload: P;
+        };
         try { msg = JSON.parse(e.data); }
-        catch { msg = { raw: e.data }; }
+        catch {
+            logLine?.("⚠️ ERROR", { error: "invalid-json" });
+            return;
+        }
 
         logLine?.("🖥️ ➡️ 👤", msg);
 
@@ -75,8 +96,8 @@ export function enterRoom<T extends string, P = any>({
             onPeerLeft?.({ peerId, userId });
             return;
         }
-        if (msg.from.peerId && msg.from.userId) {
-            const { userId, peerId } = msg.from;
+        if (msg.peerId && msg.userId) {
+            const { userId, peerId } = msg;
             onMessage?.(msg.type, msg.payload, {
                 info: { peerId, userId },
                 receive: (type: T, payload: P) => {

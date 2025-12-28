@@ -110,6 +110,7 @@ export function testWebRTC() {
   const session = joinWebRTCRoom({
     userId,
     logLine,
+    enterRoom,
   });
   session.enter({
     room: "test",
