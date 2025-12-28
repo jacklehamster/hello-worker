@@ -81,7 +81,6 @@ export function enterRoom<T extends string, P = any>({
   worker.addEventListener("message", onWorkerMessage);
 
   worker.postMessage({ cmd: "enter", userId, room, host });
-  (window as any)._worker = worker; // for debugging
 
   return {
     exitRoom: () => {
