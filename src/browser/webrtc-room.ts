@@ -119,6 +119,24 @@ export function joinWebRTCRoom({
         user.receive("offer", pc.localDescription!);
       },
 
+      onPeerLeft: (info) => {
+        const state = peers.get(info.userId);
+        if (!state) return;
+        for (const user of state.users) {
+          if (user.info.userId === info.userId) {
+            state.users.delete(user);
+            break;
+          }
+        }
+        logLine("👤 LEFT", info);
+        if (state.users.size === 0) {
+          try { state.dataChannel?.close(); } catch {}
+          try { state.pc.close(); } catch {}
+          peers.delete(info.userId);
+          logLine("👤 USER LEFT", info.userId);
+        }
+      },
+
       onMessage: async (type, payload, from) => {
         const state = getPeer(from);
         const pc = state.pc;

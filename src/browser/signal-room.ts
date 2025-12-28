@@ -26,6 +26,7 @@ export function enterRoom<T extends string, P = any>({
     onError,
     logLine,
     onPeerJoined,
+    onPeerLeft,
     onMessage,
 }: {
     userId: string;
@@ -36,6 +37,7 @@ export function enterRoom<T extends string, P = any>({
     onError?: () => void;
     logLine?: (direction: string, obj?: any) => void;
     onPeerJoined?: (user: IUser) => void;
+    onPeerLeft?: (info: IUser["info"]) => void;
     onMessage?: (type: T, payload: P, from: IUser) => void;
 }) {
     const wsUrl = "wss://" + host + "/room/" + room + "?userId=" + encodeURIComponent(userId);
@@ -66,6 +68,11 @@ export function enterRoom<T extends string, P = any>({
                     return send(type, peerId, payload);
                 },
             });
+            return;
+        }
+        if (msg.type === "peer-left" && msg.peerId && msg.userId) {
+            const { userId, peerId } = msg;
+            onPeerLeft?.({ peerId, userId });
             return;
         }
         if (msg.from.peerId && msg.from.userId) {

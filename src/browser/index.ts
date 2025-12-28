@@ -48,6 +48,9 @@ export function testWelcome() {
         onPeerJoined: (user) => {
             user.receive("welcome", { note: welcomeEl.value });
         },
+        onPeerLeft: (info) => {
+            logLine("👤 LEFT", info);
+        },
         onMessage: (type, payload, user) => {
             if (type === "welcome") {
                 user.receive("thanks", { note: "Thank you! 🙏" });
