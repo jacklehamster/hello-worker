@@ -38,7 +38,6 @@
   <script type="module">
     import { testWelcome, testWebRTC, clearLog } from "./sample.js";
 
-    let connected = false;
     let onExit;
     function setupWelcome() {
       location.hash = "";
@@ -86,6 +85,9 @@
       onExit?.();
       setWebRTC();
     };
+    document.addEventListener("DOMContentLoaded", () => {
+      connect();
+    });
   </script>
 </body>
 </html>
