@@ -1,4 +1,4 @@
-import { WebSocket, DurableObject, DurableObjectState, Request, Response, WebSocketPair } from "@cloudflare/workers-types";
+import { WebSocket, DurableObject, DurableObjectState, Request } from "@cloudflare/workers-types";
 
 type AnyJson =
   | null
