@@ -1,4 +1,4 @@
-import { Fetcher, DurableObjectNamespace, Response,Request } from "@cloudflare/workers-types";
+import { Fetcher, DurableObjectNamespace, Request } from "@cloudflare/workers-types";
 
 export interface Env {
   ROOM: DurableObjectNamespace;
@@ -8,7 +8,7 @@ export interface Env {
 export { Room } from "./room";
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env) {
     const url = new URL(req.url);
 
     // If NOT /room/<id>, serve test HTML
