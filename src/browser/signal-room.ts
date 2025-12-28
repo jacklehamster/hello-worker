@@ -1,5 +1,6 @@
 import type { IUser } from "./impl/signal-room.js";
 import { enterRoom as baseEnterRoom } from "./impl/signal-room.js";
+declare const __VERSION__: string;
 
 type WorkerRoomEvent<T extends string = string, P = any> =
   | { kind: "open" }
@@ -38,7 +39,11 @@ export function enterRoom<T extends string, P = any>({
   workerUrl?: URL;
 }): { exitRoom: () => void } {
     if (!workerUrl) {
-        console.warn("Warning: enterRoom called without workerUrl; this may cause issues in some environments.");
+        const CDN_WORKER_URL = new URL(
+          `https://cdn.jsdelivr.net/npm/@dobuki/hello-worker@${__VERSION__}/dist/signal-room.worker.js`
+        );
+
+        console.warn("Warning: enterRoom called without workerUrl; this may cause issues in some environments. You should pass workerUrl explicitly. Use:", CDN_WORKER_URL);
         return baseEnterRoom<T, P>({
             userId,
             room,

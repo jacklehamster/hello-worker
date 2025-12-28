@@ -27,7 +27,7 @@ function emit<T extends string, P>(ev: RoomEvent<T, P>) {
 
 self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
   const msg = e.data;
-  console.log("[signal-room.worker] received command", msg);
+  console.debug("[signal-room.worker] received command", msg);
 
   if (msg.cmd === "enter") {
     // If re-entering, clean up first
@@ -43,7 +43,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       onClose: () => emit({ kind: "close" }),
       onError: () => emit({ kind: "error" }),
       logLine: (direction: string, obj?: any) => {
-        console.log(`[signal-room.worker] ${direction}`, obj);
+        console.debug(`[signal-room.worker] ${direction}`, obj);
         emit({ kind: "log", direction, obj });
       },
       onPeerJoined: (user: IUser) => {

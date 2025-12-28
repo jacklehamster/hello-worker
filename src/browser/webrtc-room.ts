@@ -20,7 +20,7 @@ const DEFAULT_ENTER_ROOM = enterRoom;
 
 export function joinWebRTCRoom({
   onMessage,
-  logLine = console.log,
+  logLine = console.debug,
   enterRoom = DEFAULT_ENTER_ROOM,
   workerUrl,
 }: {
