@@ -179,3 +179,5 @@ wrangler.dev.toml
 
 public/*.js
 public/*.js.map
+
+dist/

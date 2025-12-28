@@ -1,11 +1,23 @@
 {
-  "name": "hello-worker",
+  "name": "@dobuki/hello-worker",
   "version": "1.0.0",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./webrtc-room": { "types": "./dist/webrtc-room.d.ts", "default": "./dist/webrtc-room.js" },
+    "./signal-room": { "types": "./dist/signal-room.d.ts", "default": "./dist/signal-room.js" }
+  },
+  "files": ["dist"],  
   "scripts": {
     "dev": "wrangler dev src/index.ts --config wrangler.dev.toml",
     "deploy": "wrangler deploy",
-    "build": "bun i && bun build src/browser/index.ts --target browser --outdir public --minify --sourcemap && tsc"
+    "build": "bun i && bun build src/browser/*.ts --target browser --outdir public --minify --sourcemap && tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "latest",
