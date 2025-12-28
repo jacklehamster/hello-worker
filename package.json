@@ -5,12 +5,12 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": {
+    "./browser": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./webrtc-room": { "types": "./dist/webrtc-room.d.ts", "default": "./dist/webrtc-room.js" },
-    "./signal-room": { "types": "./dist/signal-room.d.ts", "default": "./dist/signal-room.js" }
+    "./browser/webrtc-room": { "types": "./dist/webrtc-room.d.ts", "default": "./dist/webrtc-room.js" },
+    "./browser/signal-room": { "types": "./dist/signal-room.d.ts", "default": "./dist/signal-room.js" }
   },
   "files": ["dist"],  
   "scripts": {
