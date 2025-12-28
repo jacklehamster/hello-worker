@@ -33,10 +33,10 @@ export function joinWebRTCRoom({
     const dc = state.dataChannel;
     if (!dc) return;
 
-    dc.onopen = () => logLine("ℹ️", { event: "dc-open", userId: state.userId });
+    dc.onopen = () => logLine("💬", { event: "dc-open", userId: state.userId });
     dc.onmessage = (e) =>
-      logLine("ℹ️", { event: "dc-message", userId: state.userId, data: e.data });
-    dc.onclose = () => logLine("ℹ️", { event: "dc-close", userId: state.userId });
+      logLine("💬", { event: "dc-message", userId: state.userId, data: e.data });
+    dc.onclose = () => logLine("💬", { event: "dc-close", userId: state.userId });
     dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId: state.userId });
   }
 
@@ -83,7 +83,7 @@ export function joinWebRTCRoom({
           wireDataChannel(newState);
         };
         newState.pc.onconnectionstatechange = () => {
-          logLine("ℹ️", { event: "pc-state", userId: newState.userId, state: newState.pc.connectionState });
+          logLine("💬", { event: "pc-state", userId: newState.userId, state: newState.pc.connectionState });
         };
         state = newState;
     } else {
@@ -91,6 +91,15 @@ export function joinWebRTCRoom({
     }
     peers.set(state.userId, state);
     return state;
+  }
+
+  function leaveUser(userId: string) {
+    const p = peers.get(userId);
+    if (!p) return;
+    try { p.dataChannel?.close(); } catch {}
+    try { p.pc.close(); } catch {}
+    peers.delete(userId);
+    logLine("👤 USER LEFT", userId);
   }
 
   const roomsEntered = new Map<string, { host: string; room: string; exitRoom: () => void }>();
@@ -132,8 +141,7 @@ export function joinWebRTCRoom({
         if (state.users.size === 0) {
           try { state.dataChannel?.close(); } catch {}
           try { state.pc.close(); } catch {}
-          peers.delete(info.userId);
-          logLine("👤 USER LEFT", info.userId);
+          leaveUser(info.userId);
         }
       },
 
@@ -202,13 +210,6 @@ export function joinWebRTCRoom({
   return {
     peers,
     sendToUser,
-    leaveUser: (userId: string) => {
-      const p = peers.get(userId);
-      if (!p) return;
-      try { p.dataChannel?.close(); } catch {}
-      try { p.pc.close(); } catch {}
-      peers.delete(userId);
-    },
     end: () => {
       roomsEntered.values().forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();
