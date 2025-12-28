@@ -31,6 +31,19 @@ export class Room implements DurableObject {
     const client = pair[0];
     const server = pair[1];
 
+    client.addEventListener("close", () => {
+      //  Notify other peers about the departure
+      const attachment = getAttachment(client);
+      if (!attachment) return;
+      const { peerId, userId } = attachment;
+      for (const ws of this.state.getWebSockets()) {
+        if (ws === client) continue;
+        try {
+          ws.send(JSON.stringify({ type: "peer-left", peerId, userId }));
+        } catch {}
+      }
+    });
+
     // IMPORTANT: accept first
     this.state.acceptWebSocket(server);
 
