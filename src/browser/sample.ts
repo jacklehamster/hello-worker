@@ -55,7 +55,7 @@ export function testWelcome() {
             }
         },
         logLine,
-        workerUrl: new URL("./signal-room.worker.ts", import.meta.url),
+        workerUrl: new URL("./signal-room.worker.js"),
     });
     return () => {
         exitRoom();
@@ -119,7 +119,7 @@ export function testWebRTC() {
         // ignore non-json
       }
     },
-    workerUrl: new URL("./signal-room.worker.ts", import.meta.url),
+    workerUrl: new URL("./signal-room.worker.js"),
   });
   session.enter({
     room: "test",

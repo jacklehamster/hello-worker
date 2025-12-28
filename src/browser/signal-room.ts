@@ -50,7 +50,7 @@ export function enterRoom<T extends string, P = any>({
             onMessage,
         });
     }
-  const worker = new Worker(new URL(workerUrl, import.meta.url), { type: "module" });
+  const worker = new Worker(workerUrl, { type: "module" });
 
   function makeUser(userId: string): IUser<T, P> {
     return {
