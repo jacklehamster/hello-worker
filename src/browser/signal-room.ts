@@ -1,4 +1,5 @@
 import type { IUser } from "./impl/signal-room.js";
+import { enterRoom as baseEnterRoom } from "./impl/signal-room.js";
 
 type WorkerRoomEvent<T extends string = string, P = any> =
   | { kind: "open" }
@@ -38,7 +39,7 @@ export function enterRoom<T extends string, P = any>({
 }): { exitRoom: () => void } {
     if (!workerUrl) {
         console.warn("Warning: enterRoom called without workerUrl; this may cause issues in some environments.");
-        return enterRoom<T, P>({
+        return baseEnterRoom<T, P>({
             userId,
             room,
             host,
