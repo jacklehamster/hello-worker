@@ -8,8 +8,6 @@ const statusEl = document.getElementById("status")!;
 const logEl = document.getElementById("log")!;
 const welcomeEl = document.getElementById("welcome") as HTMLInputElement;
 
-const userId = crypto.randomUUID();
-
 function ts() {
     // HH:MM:SS.mmm (local time)
     const d = new Date();
@@ -29,7 +27,7 @@ export function clearLog() {
 
 export function testWelcome() {
     const { exitRoom } = enterRoom({
-        userId,
+        userId: crypto.randomUUID(),
         room: "test",
         host: location.host,
         onOpen: () => {
@@ -108,10 +106,9 @@ export function testWebRTC() {
   logLine("💬", { event: "start-webrtc-test" });
 
   const session = joinWebRTCRoom({
-    userId,
     logLine,
     enterRoom,
-    onMessage: (data, from) => {
+    onMessage: (data) => {
       try {
         const { x, y } = JSON.parse(String(data));
         if (typeof x === "number" && typeof y === "number") {

@@ -1,4 +1,4 @@
-import { EnterRoom, IUser } from "./signal-room";
+import { EnterRoom, IUser, enterRoom } from "./signal-room";
 
 type SigType = "offer" | "answer" | "ice";
 type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
@@ -16,17 +16,18 @@ type PeerState = {
   dataChannel: RTCDataChannel | null;
 };
 
+const DEFAULT_ENTER_ROOM = enterRoom;
+
 export function joinWebRTCRoom({
-  userId,
   onMessage,
-  logLine,
-  enterRoom,
+  logLine = console.log,
+  enterRoom = DEFAULT_ENTER_ROOM,
 }: {
-  userId: string;
-  onMessage?: (data: any, from: { userId: string; peerId: string }) => void;
-  logLine: (direction: string, obj?: any) => void;
-  enterRoom: EnterRoom<SigType, SigPayload>;
+  onMessage?: (data: any, from: string) => void;
+  logLine?: (direction: string, obj?: any) => void;
+  enterRoom?: EnterRoom<SigType, SigPayload>;
 }) {
+  const userId = crypto.randomUUID();
   const rtcConfig: RTCConfiguration = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   };
@@ -39,7 +40,7 @@ export function joinWebRTCRoom({
 
     dc.onopen = () => logLine("💬", { event: "dc-open", userId: state.userId });
     dc.onmessage = (e) => {
-      onMessage?.(e.data as any, { userId: state.userId, peerId: state.userId });
+      onMessage?.(e.data as any, state.userId);
       logLine("💬", { event: "dc-message", userId: state.userId, data: e.data });
     };
     dc.onclose = () => logLine("💬", { event: "dc-close", userId: state.userId });
@@ -62,16 +63,16 @@ export function joinWebRTCRoom({
   }
 
   function getPeer(user: IUser<SigType, SigPayload>): PeerState {
-    let state = peers.get(user.info.userId);
+    let state = peers.get(user.userId);
     if (!state) {
         const newState: PeerState = {
-          userId: user.info.userId,
+          userId: user.userId,
           pc: new RTCPeerConnection(rtcConfig),
           pendingRemoteIce: [],
           users: new Set([user]),
           dataChannel: null,
         };
-        peers.set(user.info.userId, newState);
+        peers.set(user.userId, newState);
 
         // Send local ICE candidates to this peer
         newState.pc.onicecandidate = (ev) => {
@@ -134,20 +135,19 @@ export function joinWebRTCRoom({
         user.receive("offer", pc.localDescription!);
       },
 
-      onPeerLeft: (info) => {
-        const state = peers.get(info.userId);
+      onPeerLeft: (userId) => {
+        const state = peers.get(userId);
         if (!state) return;
         for (const user of state.users) {
-          if (user.info.userId === info.userId) {
+          if (user.userId === userId) {
             state.users.delete(user);
             break;
           }
         }
-        logLine("👤 LEFT", info);
         if (state.users.size === 0) {
           try { state.dataChannel?.close(); } catch {}
           try { state.pc.close(); } catch {}
-          leaveUser(info.userId);
+          leaveUser(userId);
         }
       },
 
@@ -220,6 +220,7 @@ export function joinWebRTCRoom({
   }
 
   return {
+    userId,
     sendToUser,
     sendToAll,
     end: () => {

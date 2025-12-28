@@ -1,20 +1,7 @@
 export interface IUser<T extends string = string, P = any> {
-    info: { peerId: string; userId: string };
+    userId: string;
     receive(type: T, payload: P): boolean;
 }
-
-export type EnterRoom<T extends string = string, P = any> = (options: {
-    userId: string;
-    room: string;
-    host: string;
-    onOpen?: () => void;
-    onClose?: () => void;
-    onError?: () => void;
-    logLine?: (direction: string, obj?: any) => void;
-    onPeerJoined?: (user: IUser<T, P>) => void;
-    onPeerLeft?: (info: IUser["info"]) => void;
-    onMessage?: (type: T, payload: P, from: IUser<T, P>) => void;
-}) => { exitRoom: () => void };
 
 /**
  * enterRoom connects to the signaling room via WebSocket.
@@ -50,9 +37,9 @@ export function enterRoom<T extends string, P = any>({
     onError?: () => void;
     logLine?: (direction: string, obj?: any) => void;
     onPeerJoined?: (user: IUser) => void;
-    onPeerLeft?: (info: IUser["info"]) => void;
+    onPeerLeft?: (userId: IUser["userId"]) => void;
     onMessage?: (type: T, payload: P, from: IUser) => void;
-}) {
+}): { exitRoom: () => void } {
     const wsUrl = "wss://" + host + "/room/" + room + "?userId=" + encodeURIComponent(userId);
     const ws = new WebSocket(wsUrl);
 
@@ -84,7 +71,7 @@ export function enterRoom<T extends string, P = any>({
         if (msg.type === "peer-joined" && msg.peerId && msg.userId) {
             const { userId, peerId } = msg;
             onPeerJoined?.({
-                info: { peerId, userId },
+                userId,
                 receive: (type: T, payload: P) => {
                     return send(type, peerId, payload);
                 },
@@ -92,14 +79,14 @@ export function enterRoom<T extends string, P = any>({
             return;
         }
         if (msg.type === "peer-left" && msg.peerId && msg.userId) {
-            const { userId, peerId } = msg;
-            onPeerLeft?.({ peerId, userId });
+            const { userId } = msg;
+            onPeerLeft?.(userId);
             return;
         }
         if (msg.peerId && msg.userId) {
             const { userId, peerId } = msg;
             onMessage?.(msg.type, msg.payload, {
-                info: { peerId, userId },
+                userId,
                 receive: (type: T, payload: P) => {
                     return send(type, peerId, payload);
                 },
@@ -122,3 +109,5 @@ export function enterRoom<T extends string, P = any>({
         },
     };
 }
+
+export type EnterRoom<T extends string, P> = typeof enterRoom<T, P>;
