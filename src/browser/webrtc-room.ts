@@ -135,7 +135,7 @@ export function joinWebRTCRoom({
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-        user.receive("offer", pc.localDescription!);
+        user.receive("offer", pc.localDescription?.toJSON()!);
       },
 
       onPeerLeft: (userId) => {
@@ -166,7 +166,7 @@ export function joinWebRTCRoom({
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
 
-          from.receive("answer", pc.localDescription!);
+          from.receive("answer", pc.localDescription?.toJSON()!);
 
           // Now safe to apply any queued ICE from this peer
           await flushRemoteIce(state);
