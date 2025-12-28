@@ -1,4 +1,5 @@
-import { EnterRoom, IUser, enterRoom } from "./signal-room";
+import { IPeer } from "./impl/signal-room";
+import { EnterRoom, enterRoom } from "./signal-room";
 
 type SigType = "offer" | "answer" | "ice";
 type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
@@ -11,7 +12,7 @@ type PeerState = {
   pendingRemoteIce: RTCIceCandidateInit[];
 
   // the signaling "user" handle so we can send messages
-  users: Set<IUser<SigType, SigPayload>>;
+  peers: Set<IPeer<SigType, SigPayload>>;
 
   dataChannel: RTCDataChannel | null;
 };
@@ -64,25 +65,25 @@ export function joinWebRTCRoom({
     }
   }
 
-  function getPeer(user: IUser<SigType, SigPayload>): PeerState {
-    let state = peers.get(user.userId);
+  function getPeer(peer: IPeer<SigType, SigPayload>): PeerState {
+    let state = peers.get(peer.userId);
     if (!state) {
         const newState: PeerState = {
-          userId: user.userId,
+          userId: peer.userId,
           pc: new RTCPeerConnection(rtcConfig),
           pendingRemoteIce: [],
-          users: new Set([user]),
+          peers: new Set([peer]),
           dataChannel: null,
         };
-        peers.set(user.userId, newState);
+        peers.set(peer.userId, newState);
 
         // Send local ICE candidates to this peer
         newState.pc.onicecandidate = (ev) => {
           if (!ev.candidate) return;
-          for(let user of newState.users) {
+          for(let user of newState.peers) {
               const success = user.receive("ice", ev.candidate.toJSON());
               if (success) break;
-              newState.users.delete(user);
+              newState.peers.delete(user);
           }
         };
             
@@ -96,7 +97,7 @@ export function joinWebRTCRoom({
         };
         state = newState;
     } else {
-      state.users.add(user);
+      state.peers.add(peer);
     }
     peers.set(state.userId, state);
     return state;
@@ -121,7 +122,7 @@ export function joinWebRTCRoom({
       workerUrl,
 
       // Existing peers initiate to the newcomer (Option 1)
-      onPeerJoined: async (user) => {
+      onPeerJoined: async (user: IPeer) => {
         const state = getPeer(user);
         const pc = state.pc;
 
@@ -138,23 +139,23 @@ export function joinWebRTCRoom({
         user.receive("offer", pc.localDescription?.toJSON()!);
       },
 
-      onPeerLeft: (userId) => {
+      onPeerLeft: (userId: string, peerId: string) => {
         const state = peers.get(userId);
         if (!state) return;
-        for (const user of state.users) {
-          if (user.userId === userId) {
-            state.users.delete(user);
+        for (const user of state.peers) {
+          if (user.peerId === peerId) {
+            state.peers.delete(user);
             break;
           }
         }
-        if (state.users.size === 0) {
+        if (state.peers.size === 0) {
           try { state.dataChannel?.close(); } catch {}
           try { state.pc.close(); } catch {}
           leaveUser(userId);
         }
       },
 
-      onMessage: async (type, payload, from) => {
+      onMessage: async (type: SigType, payload, from) => {
         const state = getPeer(from);
         const pc = state.pc;
 

@@ -1,15 +1,7 @@
-import type { IUser } from "./impl/signal-room.js";
+import type { IPeer } from "./impl/signal-room.js";
 import { enterRoom as baseEnterRoom } from "./impl/signal-room.js";
+import { RoomEvent } from "./signal-room.worker.js";
 declare const __VERSION__: string;
-
-type WorkerRoomEvent<T extends string = string, P = any> =
-  | { kind: "open" }
-  | { kind: "close" }
-  | { kind: "error" }
-  | { kind: "peer-joined"; userId: string }
-  | { kind: "peer-left"; userId: string }
-  | { kind: "message"; type: T; payload: P; fromUserId: string }
-  | { kind: "log"; direction: string; obj?: any };
 
 export function enterRoom<T extends string, P = any>({
   userId,
@@ -30,9 +22,9 @@ export function enterRoom<T extends string, P = any>({
   onOpen?: () => void;
   onClose?: () => void;
   onError?: () => void;
-  onPeerJoined?: (user: IUser<T, P>) => void;
-  onPeerLeft?: (userId: string) => void;
-  onMessage?: (type: T, payload: P, from: IUser<T, P>) => void;
+  onPeerJoined: (user: IPeer<T, P>) => void;
+  onPeerLeft: (userId: string, peerId: string) => void;
+  onMessage: (type: T, payload: P, from: IPeer<T, P>) => void;
   logLine?: (direction: string, obj?: any) => void;
 
   // Pass the URL to your worker file (bundler will handle it)
@@ -55,26 +47,29 @@ export function enterRoom<T extends string, P = any>({
         });
     }
   const worker = new Worker(workerUrl, { type: "module" });
+  let exited = false;
 
-  function makeUser(userId: string): IUser<T, P> {
+  function makeUser({ userId, peerId }: { userId: string; peerId: string }): IPeer<T, P> {
     return {
       userId,
+      peerId,
       receive: (type: T, payload: P) => {
+        if (exited) return false;
         worker.postMessage({ cmd: "send", toUserId: userId, type, payload });
         return true;
       },
     };
   }
 
-  const onWorkerMessage = (e: MessageEvent<WorkerRoomEvent<T, P>>) => {
+  const onWorkerMessage = (e: MessageEvent<RoomEvent<T, P>>) => {
     const ev = e.data;
 
     if (ev.kind === "open") onOpen?.();
     else if (ev.kind === "close") onClose?.();
     else if (ev.kind === "error") onError?.();
-    else if (ev.kind === "peer-joined") onPeerJoined?.(makeUser(ev.userId));
-    else if (ev.kind === "peer-left") onPeerLeft?.(ev.userId);
-    else if (ev.kind === "message") onMessage?.(ev.type, ev.payload, makeUser(ev.fromUserId));
+    else if (ev.kind === "peer-joined") onPeerJoined?.(makeUser({ userId: ev.userId, peerId: ev.peerId }));
+    else if (ev.kind === "peer-left") onPeerLeft?.(ev.userId, ev.peerId);
+    else if (ev.kind === "message") onMessage?.(ev.type, ev.payload, makeUser({ userId: ev.fromUserId, peerId: ev.fromPeerId }));
     else if (ev.kind === "log") logLine?.(ev.direction, ev.obj);
   };
 
@@ -84,6 +79,7 @@ export function enterRoom<T extends string, P = any>({
 
   return {
     exitRoom: () => {
+      exited = true;
       worker.postMessage({ cmd: "exit" });
       worker.removeEventListener("message", onWorkerMessage);
       worker.terminate();
@@ -92,4 +88,3 @@ export function enterRoom<T extends string, P = any>({
 }
 
 export type EnterRoom<T extends string, P> = typeof enterRoom<T, P>;
-export type { IUser };

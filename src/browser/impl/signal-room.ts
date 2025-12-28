@@ -1,21 +1,11 @@
-export interface IUser<T extends string = string, P = any> {
+export interface IPeer<T extends string = string, P = any> {
     userId: string;
+    peerId: string;
     receive(type: T, payload: P): boolean;
 }
 
 /**
  * enterRoom connects to the signaling room via WebSocket.
- * 
- * Usage:
- *  const { exitRoom } = enterRoom({
- *      room: "test",
- *      host: location.host,
- *      onOpen: () => { ... },
- *      onClose: () => { ... },
- *      onError: () => { ... },
- *      onPeerJoined: (user) => { ... },
- *      onMessage: (type, payload, fromUser) => { ... },
- * });
  */
 export function enterRoom<T extends string, P = any>({
     userId,
@@ -36,9 +26,9 @@ export function enterRoom<T extends string, P = any>({
     onClose?: () => void;
     onError?: () => void;
     logLine?: (direction: string, obj?: any) => void;
-    onPeerJoined?: (user: IUser) => void;
-    onPeerLeft?: (userId: IUser["userId"]) => void;
-    onMessage?: (type: T, payload: P, from: IUser) => void;
+    onPeerJoined(user: IPeer<T, P>) : void;
+    onPeerLeft(userId: IPeer["userId"], peerId: IPeer["peerId"]) : void;
+    onMessage(type: T, payload: P, from: IPeer<T, P>) : void;
 }): { exitRoom: () => void } {
     const wsUrl = "wss://" + host + "/room/" + room + "?userId=" + encodeURIComponent(userId);
     const ws = new WebSocket(wsUrl);
@@ -70,8 +60,9 @@ export function enterRoom<T extends string, P = any>({
         // Existing client greets newcomers
         if (msg.type === "peer-joined" && msg.peerId && msg.userId) {
             const { userId, peerId } = msg;
-            onPeerJoined?.({
+            onPeerJoined({
                 userId,
+                peerId,
                 receive: (type: T, payload: P) => {
                     return send(type, peerId, payload);
                 },
@@ -79,14 +70,15 @@ export function enterRoom<T extends string, P = any>({
             return;
         }
         if (msg.type === "peer-left" && msg.peerId && msg.userId) {
-            const { userId } = msg;
-            onPeerLeft?.(userId);
+            const { userId, peerId } = msg;
+            onPeerLeft(userId, peerId);
             return;
         }
         if (msg.peerId && msg.userId) {
             const { userId, peerId } = msg;
-            onMessage?.(msg.type, msg.payload, {
+            onMessage(msg.type, msg.payload, {
                 userId,
+                peerId,
                 receive: (type: T, payload: P) => {
                     return send(type, peerId, payload);
                 },
