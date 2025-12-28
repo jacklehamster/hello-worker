@@ -36,17 +36,23 @@
 
     let onExit;
     function setupWelcome() {
+      location.hash = "welcome";
       document.getElementById("welcome-button").disabled = true;
       document.getElementById("webrtc-button").disabled = false;
       onExit = testWelcome();
     }
-    function setWebRTC() {   
+    function setWebRTC() {
+      location.hash = "webrtc";
       document.getElementById("welcome-button").disabled = false;
       document.getElementById("webrtc-button").disabled = true;
       onExit = testWebRTC();   
     }
 
-    setupWelcome();
+    if (location.hash === "#webrtc") {
+      setWebRTC();
+    } else {
+      setupWelcome();
+    }
 
     document.getElementById("clear-log").onclick = () => {
       clearLog();
