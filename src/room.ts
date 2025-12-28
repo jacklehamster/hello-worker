@@ -31,19 +31,6 @@ export class Room implements DurableObject {
     const client = pair[0];
     const server = pair[1];
 
-    client.addEventListener("close", () => {
-      //  Notify other peers about the departure
-      const attachment = getAttachment(client);
-      if (!attachment) return;
-      const { peerId, userId } = attachment;
-      for (const ws of this.state.getWebSockets()) {
-        if (ws === client) continue;
-        try {
-          ws.send(JSON.stringify({ type: "peer-left", peerId, userId }));
-        } catch {}
-      }
-    });
-
     // IMPORTANT: accept first
     this.state.acceptWebSocket(server);
 
@@ -120,10 +107,23 @@ export class Room implements DurableObject {
     ws.send(JSON.stringify({ type: "error", error: "missing-to" }));
   }
 
+
   webSocketClose(ws: WebSocket) {
-    const peerId = getAttachment(ws);
-    console.log(`Room ${this.state.id.toString()} peer disconnected: ${peerId}`);
-  }
+    const attachment = getAttachment(ws);
+    console.log(`Room ${this.state.id.toString()} peer disconnected:`, attachment);
+
+    if (!attachment) return;
+
+    const { peerId, userId } = attachment;
+
+    // Notify other peers about the departure
+    for (const other of this.state.getWebSockets()) {
+      if (other === ws) continue;
+      try {
+        other.send(JSON.stringify({ type: "peer-left", peerId, userId }));
+      } catch {}
+    }
+  }  
 
   webSocketError(ws: WebSocket, err: unknown) {
     const peerId = getAttachment(ws);
