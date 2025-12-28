@@ -16,7 +16,7 @@
   "scripts": {
     "dev": "wrangler dev src/index.ts --config wrangler.dev.toml",
     "deploy": "wrangler deploy",
-    "build": "bun i && bun build src/browser/index.ts src/browser/signal-room.worker.ts --target browser --outdir public --minify --sourcemap  --format esm --define __VERSION__:'\"'$npm_package_version'\"' && tsc -p tsconfig.json",
+    "build": "bun i && bun build src/browser/sample.ts src/browser/signal-room.worker.ts --target browser --outdir public --minify --sourcemap  --format esm --define __VERSION__:'\"'$npm_package_version'\"' && tsc -p tsconfig.json",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
