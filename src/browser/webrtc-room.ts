@@ -18,10 +18,12 @@ type PeerState = {
 
 export function joinWebRTCRoom({
   userId,
+  onMessage,
   logLine,
   enterRoom,
 }: {
   userId: string;
+  onMessage?: (data: any, from: { userId: string; peerId: string }) => void;
   logLine: (direction: string, obj?: any) => void;
   enterRoom: EnterRoom<SigType, SigPayload>;
 }) {
@@ -36,8 +38,10 @@ export function joinWebRTCRoom({
     if (!dc) return;
 
     dc.onopen = () => logLine("💬", { event: "dc-open", userId: state.userId });
-    dc.onmessage = (e) =>
+    dc.onmessage = (e) => {
+      onMessage?.(e.data as any, { userId: state.userId, peerId: state.userId });
       logLine("💬", { event: "dc-message", userId: state.userId, data: e.data });
+    };
     dc.onclose = () => logLine("💬", { event: "dc-close", userId: state.userId });
     dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId: state.userId });
   }
@@ -209,9 +213,15 @@ export function joinWebRTCRoom({
     if (p.dataChannel?.readyState === "open") p.dataChannel.send(data);
   };
 
+  function sendToAll(data: string) {
+    for (const p of peers.values()) {
+      if (p.dataChannel?.readyState === "open") p.dataChannel.send(data);
+    }
+  }
+
   return {
-    peers,
     sendToUser,
+    sendToAll,
     end: () => {
       roomsEntered.values().forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();

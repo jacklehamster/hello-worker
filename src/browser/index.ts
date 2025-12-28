@@ -105,12 +105,22 @@ export function testWebRTC() {
 
   // --- start WebRTC mesh using YOUR joinWebRTCRoom ---
   statusEl.textContent = "connecting";
-  logLine("ℹ️", { event: "start-webrtc-test" });
+  logLine("💬", { event: "start-webrtc-test" });
 
   const session = joinWebRTCRoom({
     userId,
     logLine,
     enterRoom,
+    onMessage: (data, from) => {
+      try {
+        const { x, y } = JSON.parse(String(data));
+        if (typeof x === "number" && typeof y === "number") {
+          setEmojiPos01(x, y);
+        }
+      } catch {
+        // ignore non-json
+      }
+    }
   });
   session.enter({
     room: "test",
@@ -126,16 +136,7 @@ export function testWebRTC() {
 
     const msg = JSON.stringify({ x: x01, y: y01 });
 
-    for (const peer of session.peers.values()) {
-      const dc = (peer as any).dataChannel as RTCDataChannel | null | undefined;
-      if (dc && dc.readyState === "open") {
-        try {
-          dc.send(msg);
-        } catch {
-          // ignore
-        }
-      }
-    }
+    session.sendToAll(msg);
   }
 
   function onPointerMove(ev: PointerEvent) {
@@ -152,45 +153,12 @@ export function testWebRTC() {
 
   stageEl.addEventListener("pointermove", onPointerMove);
 
-  // --- attach onmessage handlers to each peer’s dataChannel (once) ---
-  // We keep a set so we don’t rewire repeatedly.
-  const wired = new Set<string>();
-  const interval = window.setInterval(() => {
-    statusEl.textContent = "connected"; // signaling is up; WebRTC may still be negotiating
-
-    for (const [peerId, peer] of session.peers.entries()) {
-      if (wired.has(peerId)) continue;
-
-      const dc = (peer as any).dataChannel as RTCDataChannel | null | undefined;
-      if (!dc) continue;
-
-      // wire it once the channel exists (even if not open yet)
-      wired.add(peerId);
-
-      dc.onmessage = (e) => {
-        try {
-          const { x, y } = JSON.parse(String(e.data));
-          if (typeof x === "number" && typeof y === "number") {
-            setEmojiPos01(x, y);
-          }
-        } catch {
-          // ignore non-json
-        }
-      };
-
-      dc.onopen = () => logLine("ℹ️", { event: "dc-open", peerId });
-      dc.onclose = () => logLine("ℹ️", { event: "dc-close", peerId });
-      dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", peerId });
-    }
-  }, 100);
-
   // return cleanup function (same pattern as testWelcome)
   return () => {
-    window.clearInterval(interval);
     stageEl!.removeEventListener("pointermove", onPointerMove);
     stageEl!.remove();
     welcomeEl.classList.remove("hidden");
     session.end();
-    logLine("ℹ️", { event: "stop-webrtc-test" });
+    logLine("💬", { event: "stop-webrtc-test" });
   };
 }
