@@ -27,7 +27,7 @@
   </div>
 
   <div>
-    <a href="" target="_blank">Open this page in a new window</a>
+    <a id="self-link" href="" target="_blank">Open this page in a new window</a>
   </div>
 
 
@@ -37,12 +37,14 @@
     let onExit;
     function setupWelcome() {
       location.hash = "welcome";
+      document.getElementById("self-link").href = location.href;
       document.getElementById("welcome-button").disabled = true;
       document.getElementById("webrtc-button").disabled = false;
       onExit = testWelcome();
     }
     function setWebRTC() {
       location.hash = "webrtc";
+      document.getElementById("self-link").href = location.href;
       document.getElementById("welcome-button").disabled = false;
       document.getElementById("webrtc-button").disabled = true;
       onExit = testWebRTC();   
