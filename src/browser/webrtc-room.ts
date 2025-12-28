@@ -118,6 +118,7 @@ export function joinWebRTCRoom({
       room,
       host,
       logLine,
+      workerUrl,
 
       // Existing peers initiate to the newcomer (Option 1)
       onPeerJoined: async (user) => {
