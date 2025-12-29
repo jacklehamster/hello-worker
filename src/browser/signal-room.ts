@@ -55,7 +55,7 @@ export function enterRoom<T extends string, P = any>({
       peerId,
       receive: (type: T, payload: P) => {
         if (exited) return false;
-        worker.postMessage({ cmd: "send", toUserId: userId, type, payload });
+        worker.postMessage({ cmd: "send", toPeerId: peerId, type, payload });
         return true;
       },
     };

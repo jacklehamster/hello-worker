@@ -19,35 +19,40 @@ type PeerState = {
 
 const DEFAULT_ENTER_ROOM = enterRoom;
 
+
+function collectWebRTC() {
+  
+}
+
+
 export function joinWebRTCRoom({
+  uid,
   onMessage,
   logLine = console.debug,
   enterRoom = DEFAULT_ENTER_ROOM,
   workerUrl,
 }: {
+  uid?: string;
   onMessage?: (data: any, from: string) => void;
   logLine?: (direction: string, obj?: any) => void;
   enterRoom?: EnterRoom<SigType, SigPayload>;
   workerUrl?: URL;
 }) {
-  const userId = `user-${crypto.randomUUID()}`;
+  const userId = uid ?? `user-${crypto.randomUUID()}`;
   const rtcConfig: RTCConfiguration = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   };
 
   const peers: Map<string, PeerState> = new Map();
 
-  function wireDataChannel(state: PeerState) {
-    const dc = state.dataChannel;
-    if (!dc) return;
-
-    dc.onopen = () => logLine("💬", { event: "dc-open", userId: state.userId });
-    dc.onmessage = (e) => {
-      onMessage?.(e.data as any, state.userId);
-      logLine("💬", { event: "dc-message", userId: state.userId, data: e.data });
+  function wireDataChannel(userId: string, dc: RTCDataChannel) {
+    dc.onopen = () => logLine("💬", { event: "dc-open", userId });
+    dc.onmessage = ({ data }) => {
+      onMessage?.(data as any, userId);
+      logLine("💬", { event: "dc-message", userId, data: data });
     };
-    dc.onclose = () => logLine("💬", { event: "dc-close", userId: state.userId });
-    dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId: state.userId });
+    dc.onclose = () => logLine("💬", { event: "dc-close", userId });
+    dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId });
   }
 
   async function flushRemoteIce(state: PeerState) {
@@ -90,7 +95,7 @@ export function joinWebRTCRoom({
         // Responder receives DataChannel here
         newState.pc.ondatachannel = (ev) => {
           newState.dataChannel = ev.channel;
-          wireDataChannel(newState);
+          wireDataChannel(newState.userId, ev.channel);
         };
         newState.pc.onconnectionstatechange = () => {
           logLine("💬", { event: "pc-state", userId: newState.userId, state: newState.pc.connectionState });
@@ -129,7 +134,7 @@ export function joinWebRTCRoom({
         // Initiator creates the DataChannel
         if (!state.dataChannel) {
           state.dataChannel = pc.createDataChannel("data");
-          wireDataChannel(state);
+          wireDataChannel(state.userId, state.dataChannel);
         }
 
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
