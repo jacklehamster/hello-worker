@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-export { joinWebRTCRoom } from "./webrtc-room.js";
-export { enterRoom } from "./impl/signal-room.js";
+export { collectPeerConnections } from "./webrtc-peer-collector";
+export { enterRoom } from "./impl/signal-room";
+export { enterWorld } from "./enter-world";

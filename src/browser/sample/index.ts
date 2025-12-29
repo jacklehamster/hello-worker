@@ -2,7 +2,7 @@
 /// <reference lib="dom.iterable" />
 
 import { enterRoom } from "../signal-room.js";
-import { joinWebRTCRoom } from "../webrtc-room.js";
+import { enterWorld } from "../enter-world.js";
 
 const statusEl = document.getElementById("status")!;
 const logEl = document.getElementById("log")!;
@@ -105,24 +105,23 @@ export function testWebRTC() {
   statusEl.textContent = "🟡 connecting";
   logLine("💬", { event: "start-webrtc-test" });
 
-  const session = joinWebRTCRoom({
+  const session = enterWorld({
     logLine,
-    enterRoom,
-    onMessage: (data) => {
-      try {
-        const { x, y } = JSON.parse(String(data));
-        if (typeof x === "number" && typeof y === "number") {
-          setEmojiPos01(x, y);
-        }
-      } catch {
-        // ignore non-json
-      }
-    },
     workerUrl: new URL("../signal-room.worker.js", import.meta.url),
   });
-  session.enter({
+  session.enterRoom({
     room: "test",
     host: location.host,
+  });
+  session.addMessageListener(data => {
+    try {
+      const { x, y } = JSON.parse(String(data));
+      if (typeof x === "number" && typeof y === "number") {
+        setEmojiPos01(x, y);
+      }
+    } catch {
+      // ignore non-json
+    }
   });
 
   // --- send mouse position over all open data channels ---

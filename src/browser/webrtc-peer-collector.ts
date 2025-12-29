@@ -1,10 +1,10 @@
 import { IPeer } from "./impl/signal-room";
 import { EnterRoom, enterRoom } from "./signal-room";
 
-type SigType = "offer" | "answer" | "ice";
-type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
+export type SigType = "offer" | "answer" | "ice";
+export type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
 
-type PeerState = {
+type UserState = {
   userId: string;
   pc: RTCPeerConnection;
 
@@ -13,49 +13,72 @@ type PeerState = {
 
   // the signaling "user" handle so we can send messages
   peers: Set<IPeer<SigType, SigPayload>>;
-
-  dataChannel: RTCDataChannel | null;
 };
 
 const DEFAULT_ENTER_ROOM = enterRoom;
 
 
-function collectWebRTC() {
-  
-}
-
-
-export function joinWebRTCRoom({
-  uid,
-  onMessage,
+export function collectPeerConnections({
+  userId,
+  receivePeerConnection,
+  leaveUserWithoutPeer = false,
+  rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] },
+  enterRoomFunction: enterRoom = DEFAULT_ENTER_ROOM,
   logLine = console.debug,
-  enterRoom = DEFAULT_ENTER_ROOM,
+  onLeaveUser,
   workerUrl,
 }: {
-  uid?: string;
-  onMessage?: (data: any, from: string) => void;
+  userId: string;
+  rtcConfig?: RTCConfiguration;
+  enterRoomFunction?: EnterRoom<SigType, SigPayload>;
+  onLeaveUser?: (userId: string) => void;
   logLine?: (direction: string, obj?: any) => void;
-  enterRoom?: EnterRoom<SigType, SigPayload>;
   workerUrl?: URL;
+  leaveUserWithoutPeer?: boolean;
+  receivePeerConnection(connection: { pc: RTCPeerConnection, userId: string, initiator: boolean }): void;
 }) {
-  const userId = uid ?? `user-${crypto.randomUUID()}`;
-  const rtcConfig: RTCConfiguration = {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-  };
+  const users: Map<string, UserState> = new Map();
+  function getPeer(peer: IPeer<SigType, SigPayload>): UserState {
+    let state = users.get(peer.userId);
+    if (!state) {
+        const newState: UserState = {
+          userId: peer.userId,
+          pc: new RTCPeerConnection(rtcConfig),
+          pendingRemoteIce: [],
+          peers: new Set([peer]),
+        };
+        users.set(peer.userId, newState);
 
-  const peers: Map<string, PeerState> = new Map();
-
-  function wireDataChannel(userId: string, dc: RTCDataChannel) {
-    dc.onopen = () => logLine("💬", { event: "dc-open", userId });
-    dc.onmessage = ({ data }) => {
-      onMessage?.(data as any, userId);
-      logLine("💬", { event: "dc-message", userId, data: data });
-    };
-    dc.onclose = () => logLine("💬", { event: "dc-close", userId });
-    dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId });
+        // Send local ICE candidates to this peer
+        newState.pc.onicecandidate = (ev) => {
+          if (!ev.candidate) return;
+          for(let user of newState.peers) {
+              const success = user.receive("ice", ev.candidate.toJSON());
+              if (success) break;
+          }
+        };
+            
+        newState.pc.onconnectionstatechange = () => {
+          logLine("💬", { event: "pc-state", userId: newState.userId, state: newState.pc.connectionState });
+        };
+        state = newState;
+    } else {
+      state.peers.add(peer);
+    }
+    users.set(state.userId, state);
+    return state;
   }
 
-  async function flushRemoteIce(state: PeerState) {
+  function leaveUser(userId: string) {
+    onLeaveUser?.(userId);
+    const p = users.get(userId);
+    if (!p) return;
+    try { p.pc.close(); } catch {}
+    users.delete(userId);
+    logLine("👤 USER LEFT", userId);
+  }
+
+  async function flushRemoteIce(state: UserState) {
     if (!state.pc.remoteDescription) return;
 
     const queued = state.pendingRemoteIce;
@@ -70,54 +93,17 @@ export function joinWebRTCRoom({
     }
   }
 
-  function getPeer(peer: IPeer<SigType, SigPayload>): PeerState {
-    let state = peers.get(peer.userId);
-    if (!state) {
-        const newState: PeerState = {
-          userId: peer.userId,
-          pc: new RTCPeerConnection(rtcConfig),
-          pendingRemoteIce: [],
-          peers: new Set([peer]),
-          dataChannel: null,
-        };
-        peers.set(peer.userId, newState);
+  const roomsEntered = new Map<string, { room: string; host: string; exitRoom: () => void }>();
 
-        // Send local ICE candidates to this peer
-        newState.pc.onicecandidate = (ev) => {
-          if (!ev.candidate) return;
-          for(let user of newState.peers) {
-              const success = user.receive("ice", ev.candidate.toJSON());
-              if (success) break;
-              newState.peers.delete(user);
-          }
-        };
-            
-        // Responder receives DataChannel here
-        newState.pc.ondatachannel = (ev) => {
-          newState.dataChannel = ev.channel;
-          wireDataChannel(newState.userId, ev.channel);
-        };
-        newState.pc.onconnectionstatechange = () => {
-          logLine("💬", { event: "pc-state", userId: newState.userId, state: newState.pc.connectionState });
-        };
-        state = newState;
-    } else {
-      state.peers.add(peer);
+  function exit({ room, host }: { room: string; host: string; }) {
+    const key = `${host}/room/${room}`;
+    const session = roomsEntered.get(key);
+    if (session) {
+      session.exitRoom();
+      roomsEntered.delete(key);
     }
-    peers.set(state.userId, state);
-    return state;
   }
 
-  function leaveUser(userId: string) {
-    const p = peers.get(userId);
-    if (!p) return;
-    try { p.dataChannel?.close(); } catch {}
-    try { p.pc.close(); } catch {}
-    peers.delete(userId);
-    logLine("👤 USER LEFT", userId);
-  }
-
-  const roomsEntered = new Map<string, { host: string; room: string; exitRoom: () => void }>();
   function enter({ room, host }: { room: string; host: string; }) {
     const { exitRoom } = enterRoom({
       userId,
@@ -131,12 +117,6 @@ export function joinWebRTCRoom({
         const state = getPeer(user);
         const pc = state.pc;
 
-        // Initiator creates the DataChannel
-        if (!state.dataChannel) {
-          state.dataChannel = pc.createDataChannel("data");
-          wireDataChannel(state.userId, state.dataChannel);
-        }
-
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -145,7 +125,7 @@ export function joinWebRTCRoom({
       },
 
       onPeerLeft(userId: string, peerId: string) {
-        const state = peers.get(userId);
+        const state = users.get(userId);
         if (!state) return;
         for (const user of state.peers) {
           if (user.peerId === peerId) {
@@ -153,9 +133,7 @@ export function joinWebRTCRoom({
             break;
           }
         }
-        if (state.peers.size === 0) {
-          try { state.dataChannel?.close(); } catch {}
-          try { state.pc.close(); } catch {}
+        if (state.peers.size === 0 && leaveUserWithoutPeer) {
           leaveUser(userId);
         }
       },
@@ -176,6 +154,7 @@ export function joinWebRTCRoom({
 
           // Now safe to apply any queued ICE from this peer
           await flushRemoteIce(state);
+          receivePeerConnection({ pc, userId: from.userId, initiator: false });
           return;
         }
 
@@ -183,6 +162,7 @@ export function joinWebRTCRoom({
           // Initiator: set remote answer
           await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
           await flushRemoteIce(state);
+          receivePeerConnection({ pc, userId: from.userId, initiator: true });
           return;
         }
 
@@ -204,40 +184,20 @@ export function joinWebRTCRoom({
         }
       },
     });
-    roomsEntered.set(`${host}/room/${room}`, { exitRoom, host, room });
+    roomsEntered.set(`${host}/room/${room}`, { exitRoom, room, host });
   }
-
-  function exit({ room, host }: { room: string; host: string; }) {
-    const key = `${host}/room/${room}`;
-    const session = roomsEntered.get(key);
-    if (session) {
-      session.exitRoom();
-      roomsEntered.delete(key);
-    }
-  }
-
-  function send(data: any, userId?: string) {
-    for (const p of peers.values()) {
-      if (userId && p.userId !== userId) continue;
-      if (p.dataChannel?.readyState === "open") p.dataChannel.send(data);
-    }
-  }
-
   return {
-    userId,
-    send,
-    end() {
-      roomsEntered.values().forEach(({ exitRoom }) => exitRoom());
-      roomsEntered.clear();
-
-      for (const p of peers.values()) {
-        try { p.dataChannel?.close(); } catch {}
-        try { p.pc.close(); } catch {}
-      }
-
-      peers.clear();
+    enterRoom: enter,
+    exitRoom: exit,
+    leaveUser,
+    getUsers() {
+      return Array.from(users.keys());
     },
-    enter,
-    exit,
+    getRooms() {
+      return Array.from(roomsEntered.values());
+    },
   };
 }
+
+
+
