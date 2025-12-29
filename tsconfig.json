@@ -11,6 +11,8 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "emitDeclarationOnly": true,
+    "noEmit": false,    
     "types": ["@cloudflare/workers-types"],
     "lib": ["esnext", "webworker"],
   },
