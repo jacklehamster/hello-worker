@@ -29,7 +29,7 @@ export function enterWorld({
 
   const dataChannels: Map<string, RTCDataChannel> = new Map();
 
-  const { enterRoom, exitRoom, leaveUser, getUsers, getRooms, } = collectPeerConnections({
+  const { enterRoom, exitRoom, leaveUser, getUsers, getRooms } = collectPeerConnections({
     userId,
     rtcConfig,
     enterRoomFunction,
@@ -48,7 +48,6 @@ export function enterWorld({
         dataChannels.set(userId, dc);
       } else {
         pc.ondatachannel = (ev) => {
-          console.log("Receive data channel", userId);
           const dc = ev.channel;
           wireDataChannel(userId, dc);
           dataChannels.set(userId, dc);
