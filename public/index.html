@@ -64,7 +64,7 @@
 
     document.getElementById("disconnect-button").onclick = () => {
       onExit?.();
-      exit = null;
+      onExit = null;
       document.getElementById("status").textContent = "disconnected";
       document.getElementById("disconnect-button").classList.add("hidden");
       document.getElementById("reconnect-button").classList.remove("hidden");
