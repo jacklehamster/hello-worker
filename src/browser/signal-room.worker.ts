@@ -74,8 +74,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
 
   if (msg.cmd === "exit") {
     exitRoom?.();
-    exitRoom = null;
-    peerSend.clear();
+    self.close();
     return;
   }
 });
