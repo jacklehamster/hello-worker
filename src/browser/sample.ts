@@ -31,16 +31,15 @@ export function testWelcome() {
         room: "test",
         host: location.host,
         onOpen: () => {
-            statusEl.textContent = "connected";
+            statusEl.textContent = "🟢 connected";
             logLine("🔗  CONNECTED");
         },
         onClose: () => {
-            statusEl.textContent = "closed";
+            statusEl.textContent = "🔴 closed";
             logLine("⛓️‍💥  DISCONNECTED");
-            statusEl.textContent = "closed";
         },
         onError: () => {
-            statusEl.textContent = "error";
+            statusEl.textContent = "🔴 error";
             logLine("⚠️ ERROR");
         },
         onPeerJoined: (user) => {
@@ -103,7 +102,7 @@ export function testWebRTC() {
   }
 
   // --- start WebRTC mesh using YOUR joinWebRTCRoom ---
-  statusEl.textContent = "connecting";
+  statusEl.textContent = "🟡 connecting";
   logLine("💬", { event: "start-webrtc-test" });
 
   const session = joinWebRTCRoom({

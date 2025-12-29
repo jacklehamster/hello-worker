@@ -14,7 +14,7 @@
 <body>
   <h1>Welcome Note Test</h1>
   <div style="display: flex; flex-direction: row; gap: 10px">
-    <div>Status: <b id="status">connecting…</b></div>
+    <div>Status: <b id="status">🟡 connecting…</b></div>
     <button id="disconnect-button">Disconnect</button>
     <button id="reconnect-button" class="hidden">Reconnect</button>
   </div>
@@ -65,13 +65,13 @@
     document.getElementById("disconnect-button").onclick = () => {
       onExit?.();
       onExit = null;
-      document.getElementById("status").textContent = "disconnected";
+      document.getElementById("status").textContent = "🔴 disconnected";
       document.getElementById("disconnect-button").classList.add("hidden");
       document.getElementById("reconnect-button").classList.remove("hidden");
     };
     document.getElementById("reconnect-button").onclick = () => {
       connect();
-      document.getElementById("status").textContent = "connecting…";
+      document.getElementById("status").textContent = "🟡 connecting…";
       document.getElementById("disconnect-button").classList.remove("hidden");
       document.getElementById("reconnect-button").classList.add("hidden");
     };
