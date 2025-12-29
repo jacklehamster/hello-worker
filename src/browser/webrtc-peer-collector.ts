@@ -142,6 +142,8 @@ export function collectPeerConnections({
         const state = getPeer(from);
         const pc = state.pc;
 
+        console.log("Receive offer", type, payload, from);
+
         if (type === "offer") {
           // Responder: set remote offer
           await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);

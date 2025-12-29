@@ -21,7 +21,7 @@ export function enterWorld({
     dc.onopen = () => logLine("💬", { event: "dc-open", userId });
     dc.onmessage = ({ data }) => {
       messagesListeners.forEach(listener => listener(data as any, userId));
-      logLine("💬", { event: "dc-message", userId, data: data });
+      logLine("💬", { event: "dc-message", userId, data });
     };
     dc.onclose = () => logLine("💬", { event: "dc-close", userId });
     dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId });
@@ -36,7 +36,7 @@ export function enterWorld({
     logLine,
     workerUrl,
     leaveUserWithoutPeer: autoLeaveUsers,
-    onLeaveUser: (userId: string) => {
+    onLeaveUser(userId: string) {
       const dc = dataChannels.get(userId);
       try { dc?.close(); } catch { }
       dataChannels.delete(userId);
