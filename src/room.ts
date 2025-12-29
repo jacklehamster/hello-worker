@@ -36,7 +36,7 @@ export class Room implements DurableObject {
     this.state.acceptWebSocket(server);
 
     // Persist peerId via attachment (survives hibernation)
-    const peerId = crypto.randomUUID();
+    const peerId = `peer-${crypto.randomUUID()}`;
     server.serializeAttachment({ peerId, userId } satisfies Attachment);
 
     console.log(`Room ${this.state.id.toString()} got new peer: ${peerId} (userId=${userId})`);

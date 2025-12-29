@@ -48,7 +48,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       },
       onPeerJoined: (user: IPeer) => {
         // Save the ability to send to this peer
-        peerSend.set(user.userId, (type, payload) => user.receive(type, payload));
+        peerSend.set(user.userId, user.receive);
         emit({ kind: "peer-joined", userId: user.userId, peerId: user.peerId });
       },
       onPeerLeft: (userId: string, peerId: string) => {
@@ -57,7 +57,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       },
       onMessage: (type: any, payload: any, from: IPeer) => {
         // We can also learn peerSend via onMessage in case join events vary
-        peerSend.set(from.userId, (t, p) => from.receive(t, p));
+        peerSend.set(from.userId, from.receive);
         emit({ kind: "message", type, payload, fromUserId: from.userId, fromPeerId: from.peerId });
       },
     });

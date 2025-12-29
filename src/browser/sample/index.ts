@@ -1,8 +1,8 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-import { enterRoom } from "./signal-room.js";
-import { joinWebRTCRoom } from "./webrtc-room.js";
+import { enterRoom } from "../signal-room.js";
+import { joinWebRTCRoom } from "../webrtc-room.js";
 
 const statusEl = document.getElementById("status")!;
 const logEl = document.getElementById("log")!;
@@ -134,7 +134,7 @@ export function testWebRTC() {
 
     const msg = JSON.stringify({ x: x01, y: y01 });
 
-    session.sendToAll(msg);
+    session.send(msg);
   }
 
   function onPointerMove(ev: PointerEvent) {

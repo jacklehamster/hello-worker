@@ -30,7 +30,7 @@ export function joinWebRTCRoom({
   enterRoom?: EnterRoom<SigType, SigPayload>;
   workerUrl?: URL;
 }) {
-  const userId = crypto.randomUUID();
+  const userId = `user-${crypto.randomUUID()}`;
   const rtcConfig: RTCConfiguration = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   };
@@ -211,23 +211,17 @@ export function joinWebRTCRoom({
     }
   }
 
-  const sendToUser = (userId: string, data: string) => {
-    const p = peers.get(userId);
-    if (!p) return;
-    if (p.dataChannel?.readyState === "open") p.dataChannel.send(data);
-  };
-
-  function sendToAll(data: string) {
+  function send(data: any, userId?: string) {
     for (const p of peers.values()) {
+      if (userId && p.userId !== userId) continue;
       if (p.dataChannel?.readyState === "open") p.dataChannel.send(data);
     }
   }
 
   return {
     userId,
-    sendToUser,
-    sendToAll,
-    end: () => {
+    send,
+    end() {
       roomsEntered.values().forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();
 

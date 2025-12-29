@@ -177,7 +177,8 @@ dist
 wrangler.dev.toml
 .wrangler
 
-public/*.js
-public/*.js.map
+public/**/*
+!public/index.html
+!public/favicon.ico
 
 dist/
