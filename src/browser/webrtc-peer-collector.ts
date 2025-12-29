@@ -116,6 +116,7 @@ export function collectPeerConnections({
       async onPeerJoined(user: IPeer) {
         const state = getPeer(user);
         const pc = state.pc;
+        receivePeerConnection({ pc, userId: user.userId, initiator: true });
 
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
         const offer = await pc.createOffer();
@@ -143,6 +144,7 @@ export function collectPeerConnections({
         const pc = state.pc;
 
         if (type === "offer") {
+          receivePeerConnection({ pc, userId: from.userId, initiator: false });
           // Responder: set remote offer
           await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
 
@@ -154,7 +156,6 @@ export function collectPeerConnections({
 
           // Now safe to apply any queued ICE from this peer
           await flushRemoteIce(state);
-          receivePeerConnection({ pc, userId: from.userId, initiator: false });
           return;
         }
 
