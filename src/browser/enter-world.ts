@@ -42,13 +42,13 @@ export function enterWorld({
       dataChannels.delete(userId);
     },
     receivePeerConnection({ pc, userId, initiator }) {
-      console.log("receivePeerConnection", pc, userId, initiator);
       if (initiator) {
         const dc = pc.createDataChannel("data");
         wireDataChannel(userId, dc);
         dataChannels.set(userId, dc);
       } else {
         pc.ondatachannel = (ev) => {
+          console.log("Receive data channel", userId);
           const dc = ev.channel;
           wireDataChannel(userId, dc);
           dataChannels.set(userId, dc);
