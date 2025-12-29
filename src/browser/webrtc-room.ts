@@ -122,7 +122,7 @@ export function joinWebRTCRoom({
       workerUrl,
 
       // Existing peers initiate to the newcomer (Option 1)
-      onPeerJoined: async (user: IPeer) => {
+      async onPeerJoined(user: IPeer) {
         const state = getPeer(user);
         const pc = state.pc;
 
@@ -139,7 +139,7 @@ export function joinWebRTCRoom({
         user.receive("offer", pc.localDescription?.toJSON()!);
       },
 
-      onPeerLeft: (userId: string, peerId: string) => {
+      onPeerLeft(userId: string, peerId: string) {
         const state = peers.get(userId);
         if (!state) return;
         for (const user of state.peers) {
@@ -155,7 +155,7 @@ export function joinWebRTCRoom({
         }
       },
 
-      onMessage: async (type: SigType, payload, from) => {
+      async onMessage(type: SigType, payload, from) {
         const state = getPeer(from);
         const pc = state.pc;
 
