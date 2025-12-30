@@ -155,6 +155,7 @@ export function collectPeerConnections({
       },
 
       async onMessage(type: SigType, payload, from) {
+        console.log("New message", type, payload, from);
         const state = getPeer(from);
         const pc = state.pc;
 
