@@ -133,9 +133,8 @@ export function testWebRTC() {
       // ignore non-json
     }
   });
-  session.addUserListener((_userId, users) => {
-    console.log(_userId, users);
-    usersEl.textContent = `Users: ${users.length}`;
+  session.addUserListener((_userId, _action, users) => {
+    usersEl.textContent = `Users: ${users.length + 1}`;
   });
 
   // --- send mouse position over all open data channels ---

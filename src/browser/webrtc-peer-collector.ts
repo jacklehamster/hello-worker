@@ -14,6 +14,7 @@ type UserState = {
   // the signaling "user" handle so we can send messages
   peers: Set<IPeer<SigType, SigPayload>>;
 };
+type UserListener = (user: string, action: "join"|"leave", users: string[]) => void;
 
 const DEFAULT_ENTER_ROOM = enterRoom;
 
@@ -42,7 +43,7 @@ export function collectPeerConnections({
     return [...users.keys()];
   }
 
-  const userListener: Set<(user: string, users: string[]) => void> = new Set();
+  const userListener: Set<UserListener> = new Set();
   function getPeer(peer: IPeer<SigType, SigPayload>): UserState {
     let state = users.get(peer.userId);
     if (!state) {
@@ -68,10 +69,8 @@ export function collectPeerConnections({
         };
         state = newState;
 
-        console.log(peer.userId, getUsers());
-
         //  New user
-        userListener.forEach(listener => listener(peer.userId, getUsers()));
+        userListener.forEach(listener => listener(peer.userId, "join", getUsers()));
     } else {
       state.peers.add(peer);
     }
@@ -85,6 +84,7 @@ export function collectPeerConnections({
     if (!p) return;
     try { p.pc.close(); } catch {}
     users.delete(userId);
+    userListener.forEach(listener => listener(userId, "leave", getUsers()));
     logLine("👤 USER LEFT", userId);
   }
 
@@ -198,11 +198,11 @@ export function collectPeerConnections({
     roomsEntered.set(`${host}/room/${room}`, { exitRoom, room, host });
   }
 
-  function removeUserListener(listener: (userId: string, users: string[]) => void) {
+  function removeUserListener(listener: UserListener) {
     userListener.delete(listener);
   }
 
-  function addUserListener(listener: (userId: string, users: string[]) => void) {
+  function addUserListener(listener: UserListener) {
     userListener.add(listener);
     return () => {
       removeUserListener(listener);
