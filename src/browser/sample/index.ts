@@ -115,7 +115,7 @@ export function testWebRTC() {
   if (!usersEl) {
     usersEl = document.createElement("div");
     usersEl.id = "users";
-    usersEl.textContent = `Users: ${session.getUsers().length}`;
+    usersEl.textContent = `Users: ${session.getUsers().length + 1}`;
     usersEl.style.fontSize = "12px";
     usersEl.style.pointerEvents = "none";
     stageEl.appendChild(usersEl);

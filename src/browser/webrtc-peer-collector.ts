@@ -140,6 +140,7 @@ export function collectPeerConnections({
       },
 
       onPeerLeft(userId: string, peerId: string) {
+        console.log("LEFT", userId, peerId);
         const state = users.get(userId);
         if (!state) return;
         for (const user of state.peers) {
