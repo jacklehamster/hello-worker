@@ -38,6 +38,11 @@ export function collectPeerConnections({
   receivePeerConnection(connection: { pc: RTCPeerConnection, userId: string, initiator: boolean }): void;
 }) {
   const users: Map<string, UserState> = new Map();
+  function getUsers() {
+    return [...users.keys()];
+  }
+
+  const usersListener: Set<(user: string, users: string[]) => void> = new Set();
   function getPeer(peer: IPeer<SigType, SigPayload>): UserState {
     let state = users.get(peer.userId);
     if (!state) {
@@ -62,6 +67,9 @@ export function collectPeerConnections({
           logLine("💬", { event: "pc-state", userId: newState.userId, state: newState.pc.connectionState });
         };
         state = newState;
+
+        //  New user
+        usersListener.forEach(listener => listener(peer.userId, getUsers()));
     } else {
       state.peers.add(peer);
     }
@@ -187,15 +195,33 @@ export function collectPeerConnections({
     });
     roomsEntered.set(`${host}/room/${room}`, { exitRoom, room, host });
   }
+
+  function removeUserListener(listener: (userId: string, users: string[]) => void) {
+    usersListener.add(listener);
+  }
+
+  function addUserListener(listener: (userId: string, users: string[]) => void) {
+    usersListener.delete(listener);
+    return () => {
+      removeUserListener(listener);
+    };
+  }
+
   return {
     enterRoom: enter,
     exitRoom: exit,
     leaveUser,
-    getUsers() {
-      return Array.from(users.keys());
-    },
+    getUsers,
+    addUserListener,
+    removeUserListener,
     getRooms() {
       return Array.from(roomsEntered.values());
+    },
+    end() {
+      roomsEntered.forEach(({ exitRoom }) => exitRoom());
+      roomsEntered.clear();
+      users.forEach(({ userId }) => leaveUser(userId));
+      usersListener.clear();
     },
   };
 }

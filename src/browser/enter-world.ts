@@ -16,7 +16,6 @@ export function enterWorld({
   };
 
   const messagesListeners = new Set<(data: any, from: string) => void>();
-  const usersListener = new Set<(userId: string) => void>();
 
   function wireDataChannel(userId: string, dc: RTCDataChannel) {
     dc.onopen = () => logLine("💬", { event: "dc-open", userId });
@@ -30,7 +29,7 @@ export function enterWorld({
 
   const dataChannels: Map<string, RTCDataChannel> = new Map();
 
-  const { enterRoom, exitRoom, leaveUser, getUsers, getRooms } = collectPeerConnections({
+  const { enterRoom, exitRoom, getUsers, leaveUser, addUserListener, removeUserListener, end: endPeerCollection } = collectPeerConnections({
     userId,
     rtcConfig,
     enterRoomFunction,
@@ -77,17 +76,6 @@ export function enterWorld({
     };
   }
 
-  function removeUserListener(listener: (userId: string) => void) {
-    usersListener.delete(listener);
-  }
-
-  function addUserListener(listener: (userId: string) => void) {
-    usersListener.add(listener);
-    return () => {
-      removeUserListener(listener);
-    };
-  }
-
   return {
     userId,
     send,
@@ -100,9 +88,7 @@ export function enterWorld({
     addUserListener,
     removeUserListener,
     end() {
-      getUsers().forEach(user => leaveUser(user));
-      getRooms().forEach(({ room, host}) => exitRoom({ room, host }));
-      
+      endPeerCollection();
       dataChannels.forEach((dataChannel) => {
         try { dataChannel.close(); } catch { }
       });

@@ -93,6 +93,16 @@ export function testWebRTC() {
     stageEl.appendChild(emojiEl);
   }
 
+  let usersEl = document.getElementById("users") as HTMLDivElement | null;
+  if (!usersEl) {
+    usersEl = document.createElement("div");
+    usersEl.id = "users";
+    usersEl.textContent = "Users: 1";
+    usersEl.style.fontSize = "12px";
+    usersEl.style.pointerEvents = "none";
+    stageEl.appendChild(usersEl);
+  }
+
   function setEmojiPos01(x01: number, y01: number) {
     const r = stageEl!.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, x01)) * r.width;
@@ -122,6 +132,9 @@ export function testWebRTC() {
     } catch {
       // ignore non-json
     }
+  });
+  session.addUserListener((_userId, users) => {
+    usersEl.textContent = `Users: ${users}`;
   });
 
   // --- send mouse position over all open data channels ---
