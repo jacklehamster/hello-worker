@@ -2,12 +2,12 @@ import { EnterRoom, enterRoom } from "./signal-room";
 import { SigType, SigPayload, collectPeerConnections } from "./webrtc-peer-collector";
 
 export function enterWorld({
-  uid, logLine = console.debug, enterRoomFunction = enterRoom, autoLeaveUsers = false, workerUrl,
+  uid, logLine = console.debug, enterRoomFunction = enterRoom, peerlessUserExpiration, workerUrl,
 }: {
   uid?: string;
   logLine?: (direction: string, obj?: any) => void;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
-  autoLeaveUsers?: boolean;
+  peerlessUserExpiration?: number;
   workerUrl?: URL;
 }) {
   const userId = uid ?? `user-${crypto.randomUUID()}`;
@@ -35,7 +35,7 @@ export function enterWorld({
     enterRoomFunction,
     logLine,
     workerUrl,
-    leaveUserWithoutPeer: autoLeaveUsers,
+    peerlessUserExpiration,
     onLeaveUser(userId: string) {
       const dc = dataChannels.get(userId);
       try { dc?.close(); } catch { }

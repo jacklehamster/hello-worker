@@ -13,6 +13,8 @@ type UserState = {
 
   // the signaling "user" handle so we can send messages
   peers: Set<IPeer<SigType, SigPayload>>;
+
+  expirationTimeout?: number;
 };
 type UserListener = (user: string, action: "join"|"leave", users: string[]) => void;
 
@@ -22,7 +24,7 @@ const DEFAULT_ENTER_ROOM = enterRoom;
 export function collectPeerConnections({
   userId,
   receivePeerConnection,
-  leaveUserWithoutPeer = false,
+  peerlessUserExpiration,
   rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] },
   enterRoomFunction: enterRoom = DEFAULT_ENTER_ROOM,
   logLine = console.debug,
@@ -35,7 +37,7 @@ export function collectPeerConnections({
   onLeaveUser?: (userId: string) => void;
   logLine?: (direction: string, obj?: any) => void;
   workerUrl?: URL;
-  leaveUserWithoutPeer?: boolean;
+  peerlessUserExpiration?: number;
   receivePeerConnection(connection: { pc: RTCPeerConnection, userId: string, initiator: boolean }): void;
 }) {
   const users: Map<string, UserState> = new Map();
@@ -72,6 +74,8 @@ export function collectPeerConnections({
         //  New user
         userListener.forEach(listener => listener(peer.userId, "join", getUsers()));
     } else {
+      clearTimeout(state.expirationTimeout);
+      state.expirationTimeout = 0;
       state.peers.add(peer);
     }
     users.set(state.userId, state);
@@ -144,8 +148,8 @@ export function collectPeerConnections({
             break;
           }
         }
-        if (state.peers.size === 0 && leaveUserWithoutPeer) {
-          leaveUser(userId);
+        if (state.peers.size === 0) {
+          state.expirationTimeout = setTimeout(() => leaveUser(userId), peerlessUserExpiration ?? 0);
         }
       },
 
