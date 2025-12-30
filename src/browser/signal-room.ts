@@ -4,6 +4,7 @@ import { RoomEvent } from "./signal-room.worker.js";
 
 export function enterRoom<T extends string, P = any>({
   userId,
+  appId,
   room,
   host,
   onOpen,
@@ -16,6 +17,7 @@ export function enterRoom<T extends string, P = any>({
   workerUrl,
 }: {
   userId: string;
+  appId: string;
   room: string;
   host: string;
   onOpen?: () => void;
@@ -35,6 +37,7 @@ export function enterRoom<T extends string, P = any>({
         console.warn("Warning: enterRoom called without workerUrl; this may cause issues in some environments. You should pass workerUrl explicitly. Use:", CDN_WORKER_URL);
         return baseEnterRoom<T, P>({
             userId,
+            appId,
             room,
             host,
             onOpen,

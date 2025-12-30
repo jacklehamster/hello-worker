@@ -9,6 +9,7 @@ export interface IPeer<T extends string = string, P = any> {
  */
 export function enterRoom<T extends string, P = any>({
     userId,
+    appId,
     room,
     host,
     onOpen,
@@ -20,6 +21,7 @@ export function enterRoom<T extends string, P = any>({
     onMessage,
 }: {
     userId: string;
+    appId: string;
     room: string;
     host: string;
     onOpen?: () => void;
@@ -30,7 +32,7 @@ export function enterRoom<T extends string, P = any>({
     onPeerLeft(userId: IPeer["userId"], peerId: IPeer["peerId"]) : void;
     onMessage(type: T, payload: P, from: IPeer<T, P>) : void;
 }): { exitRoom: () => void } {
-    const wsUrl = "wss://" + host + "/room/" + room + "?userId=" + encodeURIComponent(userId);
+    const wsUrl = `wss://${host}/room/${appId}/${room}?userId=${encodeURIComponent(userId)}`;
     const ws = new WebSocket(wsUrl);
 
     let exited = false;
@@ -63,9 +65,7 @@ export function enterRoom<T extends string, P = any>({
             onPeerJoined({
                 userId,
                 peerId,
-                receive: (type: T, payload: P) => {
-                    return send(type, peerId, payload);
-                },
+                receive: (type: T, payload: P) => send(type, peerId, payload),
             });
             return;
         }
@@ -79,9 +79,7 @@ export function enterRoom<T extends string, P = any>({
             onMessage(msg.type, msg.payload, {
                 userId,
                 peerId,
-                receive: (type: T, payload: P) => {
-                    return send(type, peerId, payload);
-                },
+                receive: (type: T, payload: P) => send(type, peerId, payload),
             });
         }
     };

@@ -23,6 +23,7 @@ const DEFAULT_ENTER_ROOM = enterRoom;
 
 export function collectPeerConnections({
   userId,
+  appId,
   receivePeerConnection,
   peerlessUserExpiration,
   rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] },
@@ -32,6 +33,7 @@ export function collectPeerConnections({
   workerUrl,
 }: {
   userId: string;
+  appId: string;
   rtcConfig?: RTCConfiguration;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
   onLeaveUser?: (userId: string) => void;
@@ -121,6 +123,7 @@ export function collectPeerConnections({
   function enter({ room, host }: { room: string; host: string; }) {
     const { exitRoom } = enterRoom({
       userId,
+      appId,
       room,
       host,
       logLine,
@@ -140,26 +143,20 @@ export function collectPeerConnections({
       },
 
       onPeerLeft(userId: string, peerId: string) {
-        console.log("LEFT", userId, peerId);
         const state = users.get(userId);
-        if (state) {
-          for (const user of state.peers) {
-            if (user.peerId === peerId) {
-              state.peers.delete(user);
-              break;
-            }
+        if (!state) return;
+        for (const user of state.peers) {
+          if (user.peerId === peerId) {
+            state.peers.delete(user);
+            break;
           }
         }
-        if (!state || state.peers.size === 0) {
-          const timeout = setTimeout(() => leaveUser(userId), peerlessUserExpiration ?? 0);
-          if (state) {
-            state.expirationTimeout = timeout;
-          }
+        if (state.peers.size === 0) {
+          state.expirationTimeout = setTimeout(() => leaveUser(userId), peerlessUserExpiration ?? 0);
         }
       },
 
       async onMessage(type: SigType, payload, from) {
-        console.log("New message", type, payload, from);
         const state = getPeer(from);
         const pc = state.pc;
 

@@ -28,6 +28,7 @@ export function clearLog() {
 export function testWelcome() {
     const { exitRoom } = enterRoom({
         userId: crypto.randomUUID(),
+        appId: "signal-test",
         room: "test",
         host: location.host,
         onOpen: () => {
@@ -76,6 +77,7 @@ export function testWebRTC() {
 
   const session = enterWorld({
     logLine,
+    appId: "webRTC-test",
     workerUrl: new URL("../signal-room.worker.js", import.meta.url),
   });
 
@@ -136,7 +138,6 @@ export function testWebRTC() {
     }
   });
   session.addUserListener((_userId, _action, users) => {
-    console.log(_userId, _action, users);
     usersEl.textContent = `Users: ${users.length + 1}`;
   });
 

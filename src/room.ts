@@ -39,7 +39,7 @@ export class Room implements DurableObject {
     const peerId = `peer-${crypto.randomUUID()}`;
     server.serializeAttachment({ peerId, userId } satisfies Attachment);
 
-    console.log(`Room ${this.state.id.toString()} got new peer: ${peerId} (userId=${userId})`);
+    console.debug(`Room ${this.state.id.toString()} got new peer: ${peerId} (userId=${userId})`);
 
     // Notify existing peers about the newcomer
     for (const ws of this.state.getWebSockets()) {
@@ -54,7 +54,7 @@ export class Room implements DurableObject {
 
   webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
     const attachment = getAttachment(ws);
-    console.log(`Room ${this.state.id.toString()} got message from ${attachment}:`, message);
+    console.debug(`Room ${this.state.id.toString()} got message from ${attachment}:`, message);
 
     if (!attachment) {
       // This should not happen after the attachment fix,
@@ -112,7 +112,7 @@ export class Room implements DurableObject {
 
   webSocketClose(ws: WebSocket) {
     const attachment = getAttachment(ws);
-    console.log(`Room ${this.state.id.toString()} peer disconnected:`, attachment);
+    console.debug(`Room ${this.state.id.toString()} peer disconnected:`, attachment);
 
     if (!attachment) return;
 
@@ -129,6 +129,6 @@ export class Room implements DurableObject {
 
   webSocketError(ws: WebSocket, err: unknown) {
     const peerId = getAttachment(ws);
-    console.log(`Room ${this.state.id.toString()} ws error for peer ${peerId}:`, err);
+    console.error(`Room ${this.state.id.toString()} ws error for peer ${peerId}:`, err);
   }
 }

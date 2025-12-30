@@ -11,8 +11,8 @@ export default {
   async fetch(req: Request, env: Env) {
     const url = new URL(req.url);
 
-    // If NOT /room/<id>, serve test HTML
-    const match = url.pathname.match(/^\/room\/([^/]+)$/);
+    // If NOT /room/<appId/<roomId>, serve test HTML
+    const match = url.pathname.match(/^\/room\/([^/]+)\/([^/]+)$/);
     if (!match) {
       // everything else falls through to static assets
       return env.ASSETS.fetch(req);
@@ -24,8 +24,12 @@ export default {
       return new Response("Expected WebSocket", { status: 426 });
     }
 
-    const roomId = decodeURIComponent(match[1]);
-    const id = env.ROOM.idFromName(roomId);
+    const appId = decodeURIComponent(match[1]);
+    const roomId = decodeURIComponent(match[2]);
+    if (!appId || !roomId) {
+      return new Response("App id and room id required", { status: 400 });
+    }
+    const id = env.ROOM.idFromName(`${appId}/${roomId}`);
     const stub = env.ROOM.get(id);
 
     return stub.fetch(req);
