@@ -12,7 +12,7 @@ export type RoomEvent<T extends string = string, P = any> =
   | { kind: "log"; direction: string; obj?: any };
 
 type WorkerCommand<T extends string = string, P = any> =
-  | { cmd: "enter"; userId: string; room: string; host: string }
+  | { cmd: "enter"; userId: string; appId: string; room: string; host: string }
   | { cmd: "exit" }
   | { cmd: "send"; toPeerId: string; type: T; payload: P };
 
@@ -37,6 +37,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
 
     const result = enterRoom({
       userId: msg.userId,
+      appId: msg.appId,
       room: msg.room,
       host: msg.host,
       onOpen: () => emit({ kind: "open" }),
