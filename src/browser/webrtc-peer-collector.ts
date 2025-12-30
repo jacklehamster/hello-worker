@@ -12,7 +12,7 @@ type UserState = {
   pendingRemoteIce: RTCIceCandidateInit[];
 
   // the signaling "user" handle so we can send messages
-  peers: Set<IPeer<SigType, SigPayload>>;
+  peers: Map<string, IPeer<SigType, SigPayload>>;
 
   expirationTimeout?: number;
 };
@@ -55,14 +55,15 @@ export function collectPeerConnections({
           userId: peer.userId,
           pc: new RTCPeerConnection(rtcConfig),
           pendingRemoteIce: [],
-          peers: new Set([peer]),
+          peers: new Map(),
         };
+        newState.peers.set(peer.peerId, peer);
         users.set(peer.userId, newState);
 
         // Send local ICE candidates to this peer
         newState.pc.onicecandidate = (ev) => {
           if (!ev.candidate) return;
-          for(let user of newState.peers) {
+          for(let user of newState.peers.values()) {
               const success = user.receive("ice", ev.candidate.toJSON());
               if (success) break;
           }
@@ -78,7 +79,7 @@ export function collectPeerConnections({
     } else {
       clearTimeout(state.expirationTimeout);
       state.expirationTimeout = 0;
-      state.peers.add(peer);
+      state.peers.set(peer.peerId, peer);
     }
     users.set(state.userId, state);
     return state;
@@ -146,12 +147,7 @@ export function collectPeerConnections({
         const state = users.get(userId);
         console.log("PEER LEFT", userId, peerId, state);
         if (!state) return;
-        for (const user of state.peers) {
-          if (user.peerId === peerId) {
-            state.peers.delete(user);
-            break;
-          }
-        }
+        state.peers.delete(peerId);
         if (state.peers.size === 0) {
           state.expirationTimeout = setTimeout(() => leaveUser(userId), peerlessUserExpiration ?? 0);
         }
