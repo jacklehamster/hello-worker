@@ -134,7 +134,7 @@ export function testWebRTC() {
     }
   });
   session.addUserListener((_userId, users) => {
-    usersEl.textContent = `Users: ${users}`;
+    usersEl.textContent = `Users: ${users.length}`;
   });
 
   // --- send mouse position over all open data channels ---

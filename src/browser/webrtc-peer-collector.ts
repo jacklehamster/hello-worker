@@ -42,7 +42,7 @@ export function collectPeerConnections({
     return [...users.keys()];
   }
 
-  const usersListener: Set<(user: string, users: string[]) => void> = new Set();
+  const userListener: Set<(user: string, users: string[]) => void> = new Set();
   function getPeer(peer: IPeer<SigType, SigPayload>): UserState {
     let state = users.get(peer.userId);
     if (!state) {
@@ -69,7 +69,7 @@ export function collectPeerConnections({
         state = newState;
 
         //  New user
-        usersListener.forEach(listener => listener(peer.userId, getUsers()));
+        userListener.forEach(listener => listener(peer.userId, getUsers()));
     } else {
       state.peers.add(peer);
     }
@@ -197,11 +197,11 @@ export function collectPeerConnections({
   }
 
   function removeUserListener(listener: (userId: string, users: string[]) => void) {
-    usersListener.add(listener);
+    userListener.delete(listener);
   }
 
   function addUserListener(listener: (userId: string, users: string[]) => void) {
-    usersListener.delete(listener);
+    userListener.add(listener);
     return () => {
       removeUserListener(listener);
     };
@@ -221,7 +221,7 @@ export function collectPeerConnections({
       roomsEntered.forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();
       users.forEach(({ userId }) => leaveUser(userId));
-      usersListener.clear();
+      userListener.clear();
     },
   };
 }
