@@ -62,6 +62,24 @@ export function testWelcome() {
 }
 
 export function testWebRTC() {
+  function setEmojiPos01(x01: number, y01: number) {
+    const r = stageEl!.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, x01)) * r.width;
+    const y = Math.max(0, Math.min(1, y01)) * r.height;
+    emojiEl!.style.left = `${x}px`;
+    emojiEl!.style.top = `${y}px`;
+  }
+
+  // --- start WebRTC mesh using YOUR joinWebRTCRoom ---
+  statusEl.textContent = "🟡 connecting";
+  logLine("💬", { event: "start-webrtc-test" });
+
+  const session = enterWorld({
+    logLine,
+    workerUrl: new URL("../signal-room.worker.js", import.meta.url),
+  });
+
+
   // --- create a stage + emoji (if not already in HTML) ---
   let stageEl = document.getElementById("stage") as HTMLDivElement | null;
   if (!stageEl) {
@@ -97,28 +115,12 @@ export function testWebRTC() {
   if (!usersEl) {
     usersEl = document.createElement("div");
     usersEl.id = "users";
-    usersEl.textContent = "Users: 1";
+    usersEl.textContent = `Users: ${session.getUsers().length}`;
     usersEl.style.fontSize = "12px";
     usersEl.style.pointerEvents = "none";
     stageEl.appendChild(usersEl);
   }
 
-  function setEmojiPos01(x01: number, y01: number) {
-    const r = stageEl!.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, x01)) * r.width;
-    const y = Math.max(0, Math.min(1, y01)) * r.height;
-    emojiEl!.style.left = `${x}px`;
-    emojiEl!.style.top = `${y}px`;
-  }
-
-  // --- start WebRTC mesh using YOUR joinWebRTCRoom ---
-  statusEl.textContent = "🟡 connecting";
-  logLine("💬", { event: "start-webrtc-test" });
-
-  const session = enterWorld({
-    logLine,
-    workerUrl: new URL("../signal-room.worker.js", import.meta.url),
-  });
   session.enterRoom({
     room: "test",
     host: location.host,
@@ -134,6 +136,7 @@ export function testWebRTC() {
     }
   });
   session.addUserListener((_userId, _action, users) => {
+    console.log(_userId, _action, users);
     usersEl.textContent = `Users: ${users.length + 1}`;
   });
 
