@@ -145,7 +145,6 @@ export function collectPeerConnections({
 
       onPeerLeft(userId: string, peerId: string) {
         const state = users.get(userId);
-        console.log("PEER LEFT", userId, peerId, state);
         if (!state) return;
         state.peers.delete(peerId);
         if (state.peers.size === 0) {
@@ -154,7 +153,6 @@ export function collectPeerConnections({
       },
 
       async onMessage(type: SigType, payload, from) {
-        console.log("MESSAGE", type, payload, from);
         const state = getPeer(from);
         const pc = state.pc;
 
