@@ -58,6 +58,7 @@ export function testWelcome() {
         workerUrl: new URL("../signal-room.worker.js", import.meta.url),
     });
     return () => {
+        statusEl.textContent = "🔴 closed";
         exitRoom();
     };
 }
@@ -126,6 +127,8 @@ export function testWebRTC() {
   session.enterRoom({
     room: "test",
     host: location.host,
+  }).then(() => {
+    statusEl.textContent = "🟢 connected";
   });
   session.addMessageListener(data => {
     try {
@@ -169,6 +172,7 @@ export function testWebRTC() {
 
   // return cleanup function (same pattern as testWelcome)
   return () => {
+    statusEl.textContent = "🔴 closed";
     stageEl!.removeEventListener("pointermove", onPointerMove);
     stageEl!.remove();
     welcomeEl.classList.remove("hidden");
