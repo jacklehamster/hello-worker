@@ -142,15 +142,19 @@ export function collectPeerConnections({
       onPeerLeft(userId: string, peerId: string) {
         console.log("LEFT", userId, peerId);
         const state = users.get(userId);
-        if (!state) return;
-        for (const user of state.peers) {
-          if (user.peerId === peerId) {
-            state.peers.delete(user);
-            break;
+        if (state) {
+          for (const user of state.peers) {
+            if (user.peerId === peerId) {
+              state.peers.delete(user);
+              break;
+            }
           }
         }
-        if (state.peers.size === 0) {
-          state.expirationTimeout = setTimeout(() => leaveUser(userId), peerlessUserExpiration ?? 0);
+        if (!state || state.peers.size === 0) {
+          const timeout = setTimeout(() => leaveUser(userId), peerlessUserExpiration ?? 0);
+          if (state) {
+            state.expirationTimeout = timeout;
+          }
         }
       },
 
