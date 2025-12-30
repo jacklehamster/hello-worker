@@ -134,6 +134,7 @@ export function testWebRTC() {
     }
   });
   session.addUserListener((_userId, users) => {
+    console.log(_userId, users);
     usersEl.textContent = `Users: ${users.length}`;
   });
 

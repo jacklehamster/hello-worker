@@ -68,6 +68,8 @@ export function collectPeerConnections({
         };
         state = newState;
 
+        console.log(peer.userId, getUsers());
+
         //  New user
         userListener.forEach(listener => listener(peer.userId, getUsers()));
     } else {
