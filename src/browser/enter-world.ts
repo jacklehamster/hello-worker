@@ -44,6 +44,7 @@ export function enterWorld({
       dataChannels.delete(userId);
     },
     receivePeerConnection({ pc, userId, initiator }) {
+      console.log("CALLED receivePeerConnection", pc, userId, initiator);
       if (initiator) {
         const dc = pc.createDataChannel("data");
         wireDataChannel(userId, dc);
