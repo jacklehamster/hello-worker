@@ -86,7 +86,6 @@ export function collectPeerConnections({
     if (!p) return;
     try { p.pc.close(); } catch {}
     users.delete(userId);
-    logLine("👤 USER LEFT", userId);
   }
 
   async function flushRemoteIce(state: UserState) {
@@ -148,6 +147,7 @@ export function collectPeerConnections({
         },
 
         onPeerLeft(leavingUsers: { userId: string; peerId: string }[]) {
+          console.log("LEFT", leavingUsers);
           leavingUsers.forEach(({ userId, peerId }) => {
             const state = users.get(userId);
             if (!state) return;
