@@ -33,7 +33,11 @@ export function enterWorld({
       messagesListeners.forEach(listener => listener(data as any, userId));
       logLine("💬", { event: "dc-message", userId, data });
     };
-    dc.onclose = () => logLine("💬", { event: "dc-close", userId });
+    dc.onclose = () => {
+      logLine("💬", { event: "dc-close", userId });
+      userIds.splice(userIds.indexOf(userId), 1);
+      userListeners.forEach(listener => listener(userId, "leave", userIds));
+    };
     dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId });
   }
 
@@ -52,8 +56,6 @@ export function enterWorld({
       const dc = dataChannels.get(userId);
       try { dc?.close(); } catch { }
       dataChannels.delete(userId);
-      userIds.splice(userIds.indexOf(userId), 1);
-      userListeners.forEach(listener => listener(userId, "leave", userIds));
     },
     receivePeerConnection({ pc, userId, initiator }) {
       if (initiator) {
