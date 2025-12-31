@@ -43,9 +43,6 @@ export function collectPeerConnections({
   receivePeerConnection(connection: { pc: RTCPeerConnection, userId: string, initiator: boolean }): void;
 }) {
   const users: Map<string, UserState> = new Map();
-  function getUsers() {
-    return [...users.keys()];
-  }
 
   function getPeer(peer: IPeer<SigType, SigPayload>): UserState {
     let state = users.get(peer.userId);
@@ -214,7 +211,6 @@ export function collectPeerConnections({
     enterRoom: enter,
     exitRoom: exit,
     leaveUser,
-    getUsers,
     getRooms() {
       return Array.from(roomsEntered.values());
     },
@@ -222,6 +218,7 @@ export function collectPeerConnections({
       roomsEntered.forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();
       users.forEach(({ userId }) => leaveUser(userId));
+      users.clear();
     },
   };
 }

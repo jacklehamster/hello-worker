@@ -12,16 +12,22 @@ export function enterWorld({
   workerUrl?: URL;
 }) {
   const userId = uid ?? `user-${crypto.randomUUID()}`;
+  const userIds: string[] = [];
   const rtcConfig: RTCConfiguration = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   };
 
   const messagesListeners = new Set<(data: any, from: string) => void>();
 
+  function getUsers() {
+    return userIds;
+  }
+
   function wireDataChannel(userId: string, dc: RTCDataChannel) {
     dc.onopen = () => {
       logLine("💬", { event: "dc-open", userId });
-      userListeners.forEach(listener => listener(userId, "join", getUsers()));
+      userIds.push(userId);
+      userListeners.forEach(listener => listener(userId, "join", userIds));
     };
     dc.onmessage = ({ data }) => {
       messagesListeners.forEach(listener => listener(data as any, userId));
@@ -34,7 +40,7 @@ export function enterWorld({
   const dataChannels = new Map<string, RTCDataChannel>();
   const userListeners = new Set<(userId: string, action: "join"|"leave", users: string[]) => void>();
 
-  const { enterRoom, exitRoom, getUsers, leaveUser, end: endPeerCollection } = collectPeerConnections({
+  const { enterRoom, exitRoom, leaveUser, end: endPeerCollection } = collectPeerConnections({
     userId,
     appId,
     rtcConfig,
@@ -46,7 +52,8 @@ export function enterWorld({
       const dc = dataChannels.get(userId);
       try { dc?.close(); } catch { }
       dataChannels.delete(userId);
-      userListeners.forEach(listener => listener(userId, "leave", getUsers()));
+      userIds.splice(userIds.indexOf(userId), 1);
+      userListeners.forEach(listener => listener(userId, "leave", userIds));
     },
     receivePeerConnection({ pc, userId, initiator }) {
       if (initiator) {
@@ -111,6 +118,7 @@ export function enterWorld({
       dataChannels.clear();
       endPeerCollection();
       userListeners.clear();
+      userIds.length = 0;
     },
   };
 }
