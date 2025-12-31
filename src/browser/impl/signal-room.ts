@@ -86,11 +86,7 @@ export function enterRoom<T extends string, P = any>({
         logLine?.("🖥️ ➡️ 👤", msg);
 
         // Existing client greets newcomers
-        if (msg.type === "peer-joined") {
-            updatePeers(msg.users);
-            return;
-        }
-        if (msg.type === "peer-left") {
+        if (msg.type === "peer-joined" || msg.type === "peer-left") {
             updatePeers(msg.users);
             return;
         }

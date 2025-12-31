@@ -148,6 +148,7 @@ export function collectPeerConnections({
         },
 
         onPeerLeft(leavingUsers: { userId: string; peerId: string }[]) {
+          console.log("onPeerLeft", leavingUsers);
           leavingUsers.forEach(({ userId, peerId }) => {
             const state = users.get(userId);
             if (!state) return;
