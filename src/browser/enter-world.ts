@@ -19,7 +19,10 @@ export function enterWorld({
   const messagesListeners = new Set<(data: any, from: string) => void>();
 
   function wireDataChannel(userId: string, dc: RTCDataChannel) {
-    dc.onopen = () => logLine("💬", { event: "dc-open", userId });
+    dc.onopen = () => {
+      logLine("💬", { event: "dc-open", userId });
+      userListeners.forEach(listener => listener({ userId, action: "join", users: getUsers() }))
+    };
     dc.onmessage = ({ data }) => {
       messagesListeners.forEach(listener => listener(data as any, userId));
       logLine("💬", { event: "dc-message", userId, data });
@@ -28,9 +31,10 @@ export function enterWorld({
     dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId });
   }
 
-  const dataChannels: Map<string, RTCDataChannel> = new Map();
+  const dataChannels = new Map<string, RTCDataChannel>();
+  const userListeners = new Set<(info: { userId: string; action: "join"|"leave"; users: string[] }) => void>();
 
-  const { enterRoom, exitRoom, getUsers, leaveUser, addUserListener, removeUserListener, end: endPeerCollection } = collectPeerConnections({
+  const { enterRoom, exitRoom, getUsers, leaveUser, end: endPeerCollection } = collectPeerConnections({
     userId,
     appId,
     rtcConfig,
@@ -42,9 +46,9 @@ export function enterWorld({
       const dc = dataChannels.get(userId);
       try { dc?.close(); } catch { }
       dataChannels.delete(userId);
+      userListeners.forEach(listener => listener({ userId, action: "leave", users: getUsers() }))
     },
     receivePeerConnection({ pc, userId, initiator }) {
-      console.log("CALLED receivePeerConnection", pc, userId, initiator);
       if (initiator) {
         const dc = pc.createDataChannel("data");
         wireDataChannel(userId, dc);
@@ -54,10 +58,9 @@ export function enterWorld({
           const dc = ev.channel;
           wireDataChannel(userId, dc);
           dataChannels.set(userId, dc);
+          pc.ondatachannel = null;
         };
       }
-
-      logLine("💬", { event: "pc-ready", userId, initiator });
     },
   });
 
@@ -79,6 +82,17 @@ export function enterWorld({
     };
   }
 
+  function removeUserListener(listener: (info:{userId: string; action:"join"|"leave"; users: string[]}) => void) {
+      userListeners.delete(listener);
+  }
+
+  function addUserListener(listener: (info:{userId: string; action:"join"|"leave"; users: string[]}) => void) {
+      userListeners.add(listener);
+      return () => {
+        removeUserListener(listener);
+      };
+  }
+
   return {
     userId,
     send,
@@ -96,6 +110,7 @@ export function enterWorld({
       });
       dataChannels.clear();
       endPeerCollection();
+      userListeners.clear();
     },
   };
 }

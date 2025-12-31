@@ -16,7 +16,7 @@ type UserState = {
 
   expirationTimeout?: number;
 };
-type UserListener = (user: string, action: "join"|"leave", users: string[]) => void;
+type UserListener = (user: string, action: "join"|"leave") => void;
 
 const DEFAULT_ENTER_ROOM = enterRoom;
 
@@ -47,7 +47,6 @@ export function collectPeerConnections({
     return [...users.keys()];
   }
 
-  const userListener: Set<UserListener> = new Set();
   function getPeer(peer: IPeer<SigType, SigPayload>): UserState {
     let state = users.get(peer.userId);
     if (!state) {
@@ -75,7 +74,6 @@ export function collectPeerConnections({
         state = newState;
 
         //  New user
-        userListener.forEach(listener => listener(peer.userId, "join", getUsers()));
         users.set(state.userId, state);
     } else if (state) {
       clearTimeout(state.expirationTimeout);
@@ -91,7 +89,6 @@ export function collectPeerConnections({
     if (!p) return;
     try { p.pc.close(); } catch {}
     users.delete(userId);
-    userListener.forEach(listener => listener(userId, "leave", getUsers()));
     logLine("👤 USER LEFT", userId);
   }
 
@@ -213,24 +210,11 @@ export function collectPeerConnections({
     });
   }
 
-  function removeUserListener(listener: UserListener) {
-    userListener.delete(listener);
-  }
-
-  function addUserListener(listener: UserListener) {
-    userListener.add(listener);
-    return () => {
-      removeUserListener(listener);
-    };
-  }
-
   return {
     enterRoom: enter,
     exitRoom: exit,
     leaveUser,
     getUsers,
-    addUserListener,
-    removeUserListener,
     getRooms() {
       return Array.from(roomsEntered.values());
     },
@@ -238,7 +222,6 @@ export function collectPeerConnections({
       roomsEntered.forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();
       users.forEach(({ userId }) => leaveUser(userId));
-      userListener.clear();
     },
   };
 }
