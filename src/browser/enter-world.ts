@@ -21,7 +21,7 @@ export function enterWorld({
   function wireDataChannel(userId: string, dc: RTCDataChannel) {
     dc.onopen = () => {
       logLine("💬", { event: "dc-open", userId });
-      userListeners.forEach(listener => listener({ userId, action: "join", users: getUsers() }))
+      userListeners.forEach(listener => listener(userId, "join", getUsers()));
     };
     dc.onmessage = ({ data }) => {
       messagesListeners.forEach(listener => listener(data as any, userId));
@@ -32,7 +32,7 @@ export function enterWorld({
   }
 
   const dataChannels = new Map<string, RTCDataChannel>();
-  const userListeners = new Set<(info: { userId: string; action: "join"|"leave"; users: string[] }) => void>();
+  const userListeners = new Set<(userId: string, action: "join"|"leave", users: string[]) => void>();
 
   const { enterRoom, exitRoom, getUsers, leaveUser, end: endPeerCollection } = collectPeerConnections({
     userId,
@@ -46,7 +46,7 @@ export function enterWorld({
       const dc = dataChannels.get(userId);
       try { dc?.close(); } catch { }
       dataChannels.delete(userId);
-      userListeners.forEach(listener => listener({ userId, action: "leave", users: getUsers() }))
+      userListeners.forEach(listener => listener(userId, "leave", getUsers()));
     },
     receivePeerConnection({ pc, userId, initiator }) {
       if (initiator) {
@@ -82,11 +82,11 @@ export function enterWorld({
     };
   }
 
-  function removeUserListener(listener: (info:{userId: string; action:"join"|"leave"; users: string[]}) => void) {
+  function removeUserListener(listener: (userId: string, action:"join"|"leave", users: string[]) => void) {
       userListeners.delete(listener);
   }
 
-  function addUserListener(listener: (info:{userId: string; action:"join"|"leave"; users: string[]}) => void) {
+  function addUserListener(listener: (userId: string, action:"join"|"leave", users: string[]) => void) {
       userListeners.add(listener);
       return () => {
         removeUserListener(listener);
