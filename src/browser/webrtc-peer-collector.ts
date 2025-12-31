@@ -148,6 +148,7 @@ export function collectPeerConnections({
           joiningUsers.forEach(user => {
             const state = getPeer(user);
             const pc = state.pc;
+            receivePeerConnection({ pc, userId: user.userId, initiator: true });
             makeOffer(user);
           });
         },
@@ -187,7 +188,6 @@ export function collectPeerConnections({
             // Initiator: set remote answer
             await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
             await flushRemoteIce(state);
-            receivePeerConnection({ pc, userId: from.userId, initiator: true });
             return;
           }
 
