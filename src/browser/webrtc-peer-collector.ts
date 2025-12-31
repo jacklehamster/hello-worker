@@ -73,6 +73,7 @@ export function collectPeerConnections({
         //  New user
         users.set(state.userId, state);
     } else if (state) {
+      console.log("Clear expiration");
       clearTimeout(state.expirationTimeout);
       state.expirationTimeout = 0;
       state.peers.set(peer.peerId, peer);
@@ -151,8 +152,9 @@ export function collectPeerConnections({
           leavingUsers.forEach(({ userId, peerId }) => {
             const state = users.get(userId);
             if (!state) return;
+            console.log("REmove peer", peerId, "from", state.peers);
             state.peers.delete(peerId);
-            if (state.peers.size === 0) {
+            if (!state.peers.size) {
               state.expirationTimeout = setTimeout(() => leaveUser(userId), peerlessUserExpiration ?? 0);
             }
           });
