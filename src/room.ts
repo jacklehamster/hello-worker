@@ -42,14 +42,19 @@ export class Room implements DurableObject {
     console.debug(`Room ${this.state.id.toString()} got new peer: ${peerId} (userId=${userId})`);
 
     // Notify existing peers about the newcomer
+    const sockets = this.state.getWebSockets();
     for (const ws of this.state.getWebSockets()) {
       if (ws === server) continue;
       try {
-        ws.send(JSON.stringify({ type: "peer-joined", peerId, userId }));
+        ws.send(JSON.stringify({ type: "peer-joined", peerId, userId, users: this.getAttachments(sockets).map(({ userId, peerId }) => ({ userId, peerId })) }));
       } catch {}
     }
 
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  private getAttachments(websockets: WebSocket[]) {
+    return websockets.map((w) => getAttachment(w)).filter((a): a is Attachment => !!a);
   }
 
   webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
@@ -119,10 +124,11 @@ export class Room implements DurableObject {
     const { peerId, userId } = attachment;
 
     // Notify other peers about the departure
+    const sockets = this.state.getWebSockets();
     for (const other of this.state.getWebSockets()) {
       if (other === ws) continue;
       try {
-        other.send(JSON.stringify({ type: "peer-left", peerId, userId }));
+        other.send(JSON.stringify({ type: "peer-left", peerId, userId, users: this.getAttachments(sockets).map(({ userId, peerId }) => ({ userId, peerId })) }));
       } catch {}
     }
   }  

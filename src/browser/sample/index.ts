@@ -43,8 +43,8 @@ export function testWelcome() {
             statusEl.textContent = "🔴 error";
             logLine("⚠️ ERROR");
         },
-        onPeerJoined: (user) => {
-            user.receive("welcome", { note: welcomeEl.value });
+        onPeerJoined: (users) => {
+            users.forEach(user => user.receive("welcome", { note: welcomeEl.value }));
         },
         onPeerLeft: (info) => {
             logLine("👤 LEFT", info);

@@ -76,12 +76,12 @@ export function collectPeerConnections({
 
         //  New user
         userListener.forEach(listener => listener(peer.userId, "join", getUsers()));
-    } else {
+        users.set(state.userId, state);
+    } else if (state) {
       clearTimeout(state.expirationTimeout);
       state.expirationTimeout = 0;
       state.peers.set(peer.peerId, peer);
     }
-    users.set(state.userId, state);
     return state;
   }
 
@@ -123,6 +123,15 @@ export function collectPeerConnections({
 
   function enter({ room, host }: { room: string; host: string; }) {
     return new Promise<void>((resolve, reject) => {
+      async function makeOffer(user: IPeer) {
+          // Offer flow: createOffer -> setLocalDescription -> send localDescription
+          const state = getPeer(user);
+          const pc = state.pc;
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          user.receive("offer", pc.localDescription?.toJSON()!);
+      }
+
       const { exitRoom } = enterRoom({
         userId,
         appId,
@@ -131,37 +140,31 @@ export function collectPeerConnections({
         logLine,
         workerUrl,
 
-        onOpen() {
-          resolve();
-        },
-
-        onError() {
-          reject();
-        },
+        onOpen: resolve,
+        onError: reject,
 
         // Existing peers initiate to the newcomer (Option 1)
-        async onPeerJoined(user: IPeer) {
-          const state = getPeer(user);
-          const pc = state.pc;
-          receivePeerConnection({ pc, userId: user.userId, initiator: true });
-
-          // Offer flow: createOffer -> setLocalDescription -> send localDescription
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-
-          user.receive("offer", pc.localDescription?.toJSON()!);
+        onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
+          joiningUsers.forEach(user => {
+            const state = getPeer(user);
+            const pc = state.pc;
+            receivePeerConnection({ pc, userId: user.userId, initiator: true });
+            makeOffer(user);
+          });
         },
 
-        onPeerLeft(userId: string, peerId: string) {
-          const state = users.get(userId);
-          if (!state) return;
-          state.peers.delete(peerId);
-          if (state.peers.size === 0) {
-            state.expirationTimeout = setTimeout(() => leaveUser(userId), peerlessUserExpiration ?? 0);
-          }
+        onPeerLeft(leavingUsers: { userId: string; peerId: string }[]) {
+          leavingUsers.forEach(({ userId, peerId }) => {
+            const state = users.get(userId);
+            if (!state) return;
+            state.peers.delete(peerId);
+            if (state.peers.size === 0) {
+              state.expirationTimeout = setTimeout(() => leaveUser(userId), peerlessUserExpiration ?? 0);
+            }
+          });
         },
 
-        async onMessage(type: SigType, payload, from) {
+        async onMessage(type: SigType, payload: any, from: IPeer) {
           const state = getPeer(from);
           const pc = state.pc;
 

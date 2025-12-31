@@ -28,13 +28,14 @@ export function enterRoom<T extends string, P = any>({
     onClose?: () => void;
     onError?: () => void;
     logLine?: (direction: string, obj?: any) => void;
-    onPeerJoined(user: IPeer<T, P>) : void;
-    onPeerLeft(userId: IPeer["userId"], peerId: IPeer["peerId"]) : void;
+    onPeerJoined(users: IPeer<T, P>[]) : void;
+    onPeerLeft(users: {userId: string, peerId: string}[]) : void;
     onMessage(type: T, payload: P, from: IPeer<T, P>) : void;
 }): { exitRoom: () => void } {
     const wsUrl = `wss://${host}/room/${appId}/${room}?userId=${encodeURIComponent(userId)}`;
     const ws = new WebSocket(wsUrl);
 
+    const peers = new Map<string, IPeer<T, P>>();
     let exited = false;
     function send(type: T, toPeerId: string, payload: P) {
         if (exited) return false;
@@ -44,11 +45,34 @@ export function enterRoom<T extends string, P = any>({
         return true;
     }
 
+    function updatePeers(updatedUsers: { peerId: string; userId: string }[]) {
+        const joined: IPeer<T,P>[] = [];
+        const left: Omit<IPeer<T,P>, "receive">[] = [];
+        const updatedPeerSet = new Set<string>();
+        updatedUsers.forEach(({ userId, peerId }) => {
+            if (!peers.has(peerId)) {
+                const newPeer = { userId, peerId, receive: (type: T, payload: P) => send(type, peerId, payload)};
+                peers.set(peerId, newPeer);
+                joined.push(newPeer);
+            }
+            updatedPeerSet.add(peerId);
+        });
+        peers.values().forEach(({ peerId, userId }) => {
+            if (!updatedPeerSet.has(peerId)) {
+                peers.delete(peerId);
+                left.push({ peerId, userId });
+            }
+        });
+        if (joined.length) onPeerJoined(joined);
+        if (left.length) onPeerLeft(left);
+    }
+
     function onmessage(e: MessageEvent) {
         let msg: {
             type: T;
             peerId: string;
             userId: string;
+            users: { peerId: string, userId: string }[],
             payload: P;
         };
         try { msg = JSON.parse(e.data); }
@@ -60,18 +84,12 @@ export function enterRoom<T extends string, P = any>({
         logLine?.("🖥️ ➡️ 👤", msg);
 
         // Existing client greets newcomers
-        if (msg.type === "peer-joined" && msg.peerId && msg.userId) {
-            const { userId, peerId } = msg;
-            onPeerJoined({
-                userId,
-                peerId,
-                receive: (type: T, payload: P) => send(type, peerId, payload),
-            });
+        if (msg.type === "peer-joined") {
+            updatePeers(msg.users);
             return;
         }
-        if (msg.type === "peer-left" && msg.peerId && msg.userId) {
-            const { userId, peerId } = msg;
-            onPeerLeft(userId, peerId);
+        if (msg.type === "peer-left") {
+            updatePeers(msg.users);
             return;
         }
         if (msg.peerId && msg.userId) {
