@@ -128,7 +128,8 @@ export class Room implements DurableObject {
     for (const other of this.state.getWebSockets()) {
       if (other === ws) continue;
       try {
-        other.send(JSON.stringify({ type: "peer-left", peerId, userId, users: this.getAttachments(sockets).map(({ userId, peerId }) => ({ userId, peerId })) }));
+        other.send(JSON.stringify({ type: "peer-left", peerId, userId,
+          users: this.getAttachments(sockets.filter(s => s !== ws)).map(({ userId, peerId }) => ({ userId, peerId })) }));
       } catch {}
     }
   }  
