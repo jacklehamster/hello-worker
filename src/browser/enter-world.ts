@@ -90,11 +90,11 @@ export function enterWorld({
     addUserListener,
     removeUserListener,
     end() {
-      endPeerCollection();
       dataChannels.forEach((dataChannel) => {
         try { dataChannel.close(); } catch { }
       });
       dataChannels.clear();
+      endPeerCollection();
     },
   };
 }
