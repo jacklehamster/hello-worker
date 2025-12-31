@@ -34,6 +34,7 @@ export function enterRoom<T extends string, P = any>({
 }): { exitRoom: () => void } {
     const wsUrl = `wss://${host}/room/${appId}/${room}?userId=${encodeURIComponent(userId)}`;
     const ws = new WebSocket(wsUrl);
+    const selfUserId = userId;
 
     const peers = new Map<string, IPeer<T, P>>();
     let exited = false;
@@ -50,6 +51,7 @@ export function enterRoom<T extends string, P = any>({
         const left: Omit<IPeer<T,P>, "receive">[] = [];
         const updatedPeerSet = new Set<string>();
         updatedUsers.forEach(({ userId, peerId }) => {
+            if (userId === selfUserId) return;
             if (!peers.has(peerId)) {
                 const newPeer = { userId, peerId, receive: (type: T, payload: P) => send(type, peerId, payload)};
                 peers.set(peerId, newPeer);
