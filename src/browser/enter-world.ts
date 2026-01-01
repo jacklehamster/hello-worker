@@ -2,16 +2,14 @@ import { EnterRoom, enterRoom } from "./signal-room";
 import { SigType, SigPayload, collectPeerConnections } from "./webrtc-peer-collector";
 
 export function enterWorld({
-  uid, appId, logLine = console.debug, enterRoomFunction = enterRoom, peerlessUserExpiration, workerUrl,
+  appId, logLine = console.debug, enterRoomFunction = enterRoom, peerlessUserExpiration, workerUrl,
 }: {
-  uid?: string;
   appId: string;
   logLine?: (direction: string, obj?: any) => void;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
   peerlessUserExpiration?: number;
   workerUrl?: URL;
 }) {
-  const userId = uid ?? `user-${crypto.randomUUID()}`;
   const userIds: string[] = [];
   const rtcConfig: RTCConfiguration = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -44,8 +42,7 @@ export function enterWorld({
   const dataChannels = new Map<string, RTCDataChannel>();
   const userListeners = new Set<(userId: string, action: "join"|"leave", users: string[]) => void>();
 
-  const { enterRoom, exitRoom, leaveUser, end: endPeerCollection } = collectPeerConnections({
-    userId,
+  const { userId, enterRoom, exitRoom, leaveUser, end: endPeerCollection } = collectPeerConnections({
     appId,
     rtcConfig,
     enterRoomFunction,

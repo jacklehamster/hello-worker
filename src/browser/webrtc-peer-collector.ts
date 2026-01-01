@@ -22,7 +22,6 @@ const DEFAULT_ENTER_ROOM = enterRoom;
 
 
 export function collectPeerConnections({
-  userId,
   appId,
   receivePeerConnection,
   peerlessUserExpiration,
@@ -32,7 +31,6 @@ export function collectPeerConnections({
   onLeaveUser,
   workerUrl,
 }: {
-  userId: string;
   appId: string;
   rtcConfig?: RTCConfiguration;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
@@ -42,6 +40,7 @@ export function collectPeerConnections({
   peerlessUserExpiration?: number;
   receivePeerConnection(connection: { pc: RTCPeerConnection, userId: string, initiator: boolean }): void;
 }) {
+  const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
 
   function getPeer(peer: IPeer<SigType, SigPayload>): UserState {
@@ -207,6 +206,7 @@ export function collectPeerConnections({
   }
 
   return {
+    userId,
     enterRoom: enter,
     exitRoom: exit,
     leaveUser,
