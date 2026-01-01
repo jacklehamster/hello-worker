@@ -61,6 +61,7 @@ export function enterRoom<T extends string, P = any>(params: {
             // 1. Check if we should even try to reconnect
             const recoverableCodes = [1001, 1006, 1011, 1012, 1013];
             const isRecoverable = recoverableCodes.includes(ev.code);
+            console.log(autoRejoin, exited, isRecoverable, "Recovering", ev);
 
             if (autoRejoin && !exited && isRecoverable) {
                 // 2. Exponential Backoff: 1s, 2s, 4s, 8s... capped at 30s
