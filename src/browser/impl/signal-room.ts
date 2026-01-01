@@ -115,6 +115,7 @@ export function enterRoom<T extends string, P = any>(params: {
                 left.push({ peerId, userId: peer.userId });
             }
         }
+        //  Notify peer joined first then peer left. (avoid disconnect in case the peer leaving / joining is on the same user).
         if (joined.length) params.onPeerJoined(joined);
         if (left.length) params.onPeerLeft(left);
     }

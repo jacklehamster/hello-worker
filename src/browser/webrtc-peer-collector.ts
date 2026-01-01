@@ -42,8 +42,9 @@ export function collectPeerConnections({
   const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
 
-  function getPeer(peer: IPeer<SigType, SigPayload>): UserState {
+  function getPeer(peer: IPeer<SigType, SigPayload>): [UserState, boolean] {
     let state = users.get(peer.userId);
+    let isNewPeer = false;
     if (!state) {
         const newState: UserState = {
           userId: peer.userId,
@@ -70,12 +71,13 @@ export function collectPeerConnections({
 
         //  New user
         users.set(state.userId, state);
+        isNewPeer = true;
     } else if (state) {
       clearTimeout(state.expirationTimeout);
       state.expirationTimeout = 0;
       state.peers.set(peer.peerId, peer);
     }
-    return state;
+    return [state, isNewPeer];
   }
 
   function leaveUser(userId: string) {
@@ -116,7 +118,7 @@ export function collectPeerConnections({
     return new Promise<void>((resolve, reject) => {
       async function makeOffer(user: IPeer) {
           // Offer flow: createOffer -> setLocalDescription -> send localDescription
-          const state = getPeer(user);
+          const [state] = getPeer(user);
           const pc = state.pc;
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -147,7 +149,8 @@ export function collectPeerConnections({
         // Existing peers initiate to the newcomer (Option 1)
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
           joiningUsers.forEach(user => {
-            const state = getPeer(user);
+            const [state, isNewPeer] = getPeer(user);
+            if (!isNewPeer) return;
             const pc = state.pc;
             receivePeerConnection({ pc, userId: user.userId, initiator: true });
             makeOffer(user);
@@ -166,7 +169,7 @@ export function collectPeerConnections({
         },
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
-          const state = getPeer(from);
+          const [state] = getPeer(from);
           const pc = state.pc;
 
           if (type === "offer") {
