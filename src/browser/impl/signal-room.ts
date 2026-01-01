@@ -56,12 +56,10 @@ export function enterRoom<T extends string, P = any>(params: {
         };
 
         ws.onclose = (ev: CloseEvent) => {
-            params.onClose?.({ code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
 
             // 1. Check if we should even try to reconnect
             const recoverableCodes = [1001, 1006, 1011, 1012, 1013];
             const isRecoverable = recoverableCodes.includes(ev.code);
-            console.log(autoRejoin, exited, isRecoverable, "Recovering", ev);
 
             if (autoRejoin && !exited && isRecoverable) {
                 // 2. Exponential Backoff: 1s, 2s, 4s, 8s... capped at 30s
@@ -70,10 +68,12 @@ export function enterRoom<T extends string, P = any>(params: {
                 const jitter = Math.random() * 1000;
                 const delay = backoff + jitter;
 
-                logLine?.("🔄 RECONNECT", { attempt: retryCount + 1, delayMs: Math.round(delay) });
+                logLine?.("🔄 RECONNECTING", { attempt: retryCount + 1, delayMs: Math.round(delay) });
                 
                 retryCount++;
                 timeoutId = setTimeout(connect, delay);
+            } else {
+                params.onClose?.({ code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
             }
         };
 

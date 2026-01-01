@@ -71,7 +71,7 @@ export function enterRoom<T extends string, P = any>({
 
     if (ev.kind === "open") onOpen?.();
     else if (ev.kind === "close") {
-//      worker.terminate();
+     worker.terminate();
       onClose?.(ev.ev);
     }
     else if (ev.kind === "error") onError?.();
