@@ -23,7 +23,8 @@ export function enterRoom<T extends string, P = any>(params: {
     let exited = false;
     let retryCount = 0;
     let ws: WebSocket;
-    let timeoutId: any;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let initialConnection = true;
 
     const peers = new Map<string, IPeer<T, P>>();
     const wsUrl = `wss://${host}/room/${appId}/${room}?userId=${encodeURIComponent(userId)}`;
@@ -34,8 +35,11 @@ export function enterRoom<T extends string, P = any>(params: {
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
+            if (initialConnection) {
+                params.onOpen?.();
+                initialConnection = false;
+            }
             retryCount = 0; // Reset backoff on successful connection
-            params.onOpen?.();
         };
 
         ws.onmessage = (e: MessageEvent) => {
