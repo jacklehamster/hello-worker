@@ -40,6 +40,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       appId: msg.appId,
       room: msg.room,
       host: msg.host,
+      autoRejoin: msg.autoRejoin,
       onOpen: () => emit({ kind: "open" }),
       onClose: ({ code, reason, wasClean }: Pick<CloseEvent, "code"|"reason"|"wasClean">) => emit({ kind: "close", ev: {code, reason, wasClean} }),
       onError: () => emit({ kind: "error" }),
