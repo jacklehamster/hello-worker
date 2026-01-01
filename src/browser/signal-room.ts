@@ -1,12 +1,13 @@
 import type { IPeer } from "./impl/signal-room.js";
 import { enterRoom as baseEnterRoom } from "./impl/signal-room.js";
-import { RoomEvent } from "./signal-room.worker.js";
+import { RoomEvent, WorkerCommand } from "./signal-room.worker.js";
 
 export function enterRoom<T extends string, P = any>({
   userId,
   appId,
   room,
   host,
+  autoRejoin = true,
   onOpen,
   onClose,
   onError,
@@ -20,6 +21,7 @@ export function enterRoom<T extends string, P = any>({
   appId: string;
   room: string;
   host: string;
+  autoRejoin?: boolean;
   onOpen?: () => void;
   onClose?: (ev: Pick<CloseEvent, "code"|"reason"|"wasClean">) => void;
   onError?: () => void;
@@ -40,6 +42,7 @@ export function enterRoom<T extends string, P = any>({
             appId,
             room,
             host,
+            autoRejoin,
             onOpen,
             onClose,
             onError,
@@ -57,7 +60,7 @@ export function enterRoom<T extends string, P = any>({
       peerId,
       receive: (type: T, payload: P) => {
         if (exited) return false;
-        worker.postMessage({ cmd: "send", toPeerId: peerId, type, payload });
+        worker.postMessage({ cmd: "send", toPeerId: peerId, type, payload } as WorkerCommand);
         return true;
       },
     };
@@ -80,13 +83,13 @@ export function enterRoom<T extends string, P = any>({
 
   worker.addEventListener("message", onWorkerMessage);
 
-  worker.postMessage({ cmd: "enter", userId, appId, room, host });
+  worker.postMessage({ cmd: "enter", userId, appId, room, host, autoRejoin } as WorkerCommand);
 
   return {
     exitRoom: () => {
       exited = true;
       worker.removeEventListener("message", onWorkerMessage);
-      worker.postMessage({ cmd: "exit" });
+      worker.postMessage({ cmd: "exit" } as WorkerCommand);
     },
   };
 }

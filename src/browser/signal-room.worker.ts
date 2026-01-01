@@ -11,8 +11,8 @@ export type RoomEvent<T extends string = string, P = any> =
   | { kind: "message"; type: T; payload: P; fromUserId: string; fromPeerId: string }
   | { kind: "log"; direction: string; obj?: any };
 
-type WorkerCommand<T extends string = string, P = any> =
-  | { cmd: "enter"; userId: string; appId: string; room: string; host: string }
+export type WorkerCommand<T extends string = string, P = any> =
+  | { cmd: "enter"; userId: string; appId: string; room: string; host: string; autoRejoin: boolean }
   | { cmd: "exit" }
   | { cmd: "send"; toPeerId: string; type: T; payload: P };
 

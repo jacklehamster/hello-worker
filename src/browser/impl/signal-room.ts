@@ -19,6 +19,7 @@ export function enterRoom<T extends string, P = any>({
     onPeerJoined,
     onPeerLeft,
     onMessage,
+    autoRejoin = true,
 }: {
     userId: string;
     appId: string;
@@ -31,6 +32,7 @@ export function enterRoom<T extends string, P = any>({
     onPeerJoined(users: IPeer<T, P>[]) : void;
     onPeerLeft(users: {userId: string, peerId: string}[]) : void;
     onMessage(type: T, payload: P, from: IPeer<T, P>) : void;
+    autoRejoin?: boolean;
 }): { exitRoom: () => void } {
     const wsUrl = `wss://${host}/room/${appId}/${room}?userId=${encodeURIComponent(userId)}`;
     const ws = new WebSocket(wsUrl);
@@ -104,10 +106,13 @@ export function enterRoom<T extends string, P = any>({
     if (onOpen) ws.addEventListener("open", onOpen);
     const closeWrap = ({code, reason, wasClean}: CloseEvent) => {
         onClose?.({ code, reason, wasClean });
+        if (autoRejoin) {
+            console.log("TRYING TO AUTO-REJOIN");
+        }
     };
     if (onClose) ws.addEventListener("close", closeWrap);
     const errorWrap = (e: Event) => {
-        console.log("ERROR", e);
+        console.error("signal-room error", e);
         onError?.();
     };
     if (onError) ws.addEventListener("error", errorWrap);

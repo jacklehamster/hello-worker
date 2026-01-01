@@ -130,6 +130,7 @@ export function collectPeerConnections({
         host,
         logLine,
         workerUrl,
+        autoRejoin: true,
 
         onOpen() {
           console.log("onOpen");

@@ -31,13 +31,14 @@ export function testWelcome() {
         appId: "signal-test",
         room: "test",
         host: location.host,
+        autoRejoin: true,
         onOpen: () => {
             statusEl.textContent = "🟢 connected";
             logLine("🔗  CONNECTED");
         },
-        onClose: () => {
+        onClose: (event) => {
             statusEl.textContent = "🔴 closed";
-            logLine("⛓️‍💥  DISCONNECTED");
+            logLine("⛓️‍💥  DISCONNECTED", event);
         },
         onError: () => {
             statusEl.textContent = "🔴 error";
