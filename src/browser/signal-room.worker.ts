@@ -3,9 +3,9 @@
 import { enterRoom, type IPeer } from "./impl/signal-room.js";
 
 export type RoomEvent<T extends string = string, P = any> =
-  | { kind: "open" }
-  | { kind: "close" }
-  | { kind: "error" }
+  | { kind: "open", ev: Event }
+  | { kind: "close", ev: CloseEvent }
+  | { kind: "error", ev: Event }
   | { kind: "peer-joined"; users: {userId: string, peerId: string}[] }
   | { kind: "peer-left"; users: {userId: string, peerId: string}[] }
   | { kind: "message"; type: T; payload: P; fromUserId: string; fromPeerId: string }
@@ -40,9 +40,9 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       appId: msg.appId,
       room: msg.room,
       host: msg.host,
-      onOpen: () => emit({ kind: "open" }),
-      onClose: () => emit({ kind: "close" }),
-      onError: () => emit({ kind: "error" }),
+      onOpen: (ev: Event) => emit({ kind: "open", ev }),
+      onClose: (ev: CloseEvent) => emit({ kind: "close", ev }),
+      onError: (ev: Event) => emit({ kind: "error", ev }),
       logLine: (direction: string, obj?: any) => {
         console.debug(`[signal-room.worker] ${direction}`, obj);
         emit({ kind: "log", direction, obj });

@@ -1,6 +1,8 @@
 import { EnterRoom, enterRoom } from "./signal-room";
 import { SigType, SigPayload, collectPeerConnections } from "./webrtc-peer-collector";
 
+type UserListener = (user: string, action: "join"|"leave", users: string[]) => void;
+
 export function enterWorld({
   appId, logLine = console.debug, enterRoomFunction = enterRoom, peerlessUserExpiration, workerUrl,
 }: {
@@ -16,10 +18,6 @@ export function enterWorld({
   };
 
   const messagesListeners = new Set<(data: any, from: string) => void>();
-
-  function getUsers() {
-    return userIds;
-  }
 
   function wireDataChannel(userId: string, dc: RTCDataChannel) {
     dc.onopen = () => {
@@ -40,7 +38,7 @@ export function enterWorld({
   }
 
   const dataChannels = new Map<string, RTCDataChannel>();
-  const userListeners = new Set<(userId: string, action: "join"|"leave", users: string[]) => void>();
+  const userListeners = new Set<UserListener>();
 
   const { userId, enterRoom, exitRoom, leaveUser, end: endPeerCollection } = collectPeerConnections({
     appId,
@@ -88,11 +86,11 @@ export function enterWorld({
     };
   }
 
-  function removeUserListener(listener: (userId: string, action:"join"|"leave", users: string[]) => void) {
+  function removeUserListener(listener: UserListener) {
       userListeners.delete(listener);
   }
 
-  function addUserListener(listener: (userId: string, action:"join"|"leave", users: string[]) => void) {
+  function addUserListener(listener: UserListener) {
       userListeners.add(listener);
       return () => {
         removeUserListener(listener);
@@ -105,7 +103,7 @@ export function enterWorld({
     enterRoom,
     exitRoom,
     leaveUser,
-    getUsers,
+    getUsers: () => userIds,
     addMessageListener,
     removeMessageListener,
     addUserListener,

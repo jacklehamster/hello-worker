@@ -24,9 +24,9 @@ export function enterRoom<T extends string, P = any>({
     appId: string;
     room: string;
     host: string;
-    onOpen?: () => void;
-    onClose?: () => void;
-    onError?: () => void;
+    onOpen?: (ev: Event) => void;
+    onClose?: (ev: CloseEvent) => void;
+    onError?: (ev: Event) => void;
     logLine?: (direction: string, obj?: any) => void;
     onPeerJoined(users: IPeer<T, P>[]) : void;
     onPeerLeft(users: {userId: string, peerId: string}[]) : void;

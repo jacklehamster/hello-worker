@@ -20,9 +20,9 @@ export function enterRoom<T extends string, P = any>({
   appId: string;
   room: string;
   host: string;
-  onOpen?: () => void;
-  onClose?: () => void;
-  onError?: () => void;
+  onOpen?: (ev: Event) => void;
+  onClose?: (ev: CloseEvent) => void;
+  onError?: (ev: Event) => void;
   onPeerJoined: (users: IPeer<T, P>[]) => void;
   onPeerLeft: (users: {userId: string, peerId: string}[]) => void;
   onMessage: (type: T, payload: P, from: IPeer<T, P>) => void;
@@ -66,9 +66,12 @@ export function enterRoom<T extends string, P = any>({
   const onWorkerMessage = (e: MessageEvent<RoomEvent<T, P>>) => {
     const ev = e.data;
 
-    if (ev.kind === "open") onOpen?.();
-    else if (ev.kind === "close") worker.terminate();
-    else if (ev.kind === "error") onError?.();
+    if (ev.kind === "open") onOpen?.(ev.ev);
+    else if (ev.kind === "close") {
+      worker.terminate();
+      onClose?.(ev.ev);
+    }
+    else if (ev.kind === "error") onError?.(ev.ev);
     else if (ev.kind === "peer-joined") onPeerJoined(ev.users.map(ev => makeUser({ userId: ev.userId, peerId: ev.peerId })));
     else if (ev.kind === "peer-left") onPeerLeft(ev.users);
     else if (ev.kind === "message") onMessage(ev.type, ev.payload, makeUser({ userId: ev.fromUserId, peerId: ev.fromPeerId }));

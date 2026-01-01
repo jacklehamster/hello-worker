@@ -16,7 +16,6 @@ type UserState = {
 
   expirationTimeout?: number;
 };
-type UserListener = (user: string, action: "join"|"leave") => void;
 
 const DEFAULT_ENTER_ROOM = enterRoom;
 
@@ -124,7 +123,7 @@ export function collectPeerConnections({
           user.receive("offer", pc.localDescription?.toJSON()!);
       }
 
-      const { exitRoom } = enterRoom({
+      const { exitRoom, } = enterRoom({
         userId,
         appId,
         room,
@@ -132,8 +131,17 @@ export function collectPeerConnections({
         logLine,
         workerUrl,
 
-        onOpen: resolve,
-        onError: reject,
+        onOpen(ev) {
+          console.log("onOpen", ev);
+          resolve();
+        },
+        onError(ev) {
+          console.log("onError", ev);
+          reject();
+        },
+        onClose(ev) {
+          console.log("onClose", ev);
+        },
 
         // Existing peers initiate to the newcomer (Option 1)
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
@@ -210,9 +218,6 @@ export function collectPeerConnections({
     enterRoom: enter,
     exitRoom: exit,
     leaveUser,
-    getRooms() {
-      return Array.from(roomsEntered.values());
-    },
     end() {
       roomsEntered.forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();
