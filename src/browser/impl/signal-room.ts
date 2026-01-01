@@ -106,9 +106,6 @@ export function enterRoom<T extends string, P = any>({
     if (onOpen) ws.addEventListener("open", onOpen);
     const closeWrap = ({code, reason, wasClean}: CloseEvent) => {
         onClose?.({ code, reason, wasClean });
-        if (autoRejoin) {
-            console.log("TRYING TO AUTO-REJOIN");
-        }
     };
     if (onClose) ws.addEventListener("close", closeWrap);
     const errorWrap = (e: Event) => {
