@@ -131,12 +131,12 @@ export function collectPeerConnections({
         logLine,
         workerUrl,
 
-        onOpen(ev) {
-          console.log("onOpen", ev);
+        onOpen() {
+          console.log("onOpen");
           resolve();
         },
-        onError(ev) {
-          console.log("onError", ev);
+        onError() {
+          console.log("onError");
           reject();
         },
         onClose(ev) {

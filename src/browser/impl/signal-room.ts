@@ -24,9 +24,9 @@ export function enterRoom<T extends string, P = any>({
     appId: string;
     room: string;
     host: string;
-    onOpen?: (ev: Event) => void;
-    onClose?: (ev: CloseEvent) => void;
-    onError?: (ev: Event) => void;
+    onOpen?: () => void;
+    onClose?: (ev: Pick<CloseEvent, "code"|"reason"|"wasClean">) => void;
+    onError?: () => void;
     logLine?: (direction: string, obj?: any) => void;
     onPeerJoined(users: IPeer<T, P>[]) : void;
     onPeerLeft(users: {userId: string, peerId: string}[]) : void;
@@ -102,16 +102,23 @@ export function enterRoom<T extends string, P = any>({
 
     ws.addEventListener("message", onmessage);
     if (onOpen) ws.addEventListener("open", onOpen);
-    if (onClose) ws.addEventListener("close", onClose);
-    if (onError) ws.addEventListener("error", onError);
+    const closeWrap = ({code, reason, wasClean}: CloseEvent) => {
+        onClose?.({ code, reason, wasClean });
+    };
+    if (onClose) ws.addEventListener("close", closeWrap);
+    const errorWrap = (e: Event) => {
+        console.log("ERROR", e);
+        onError?.();
+    };
+    if (onError) ws.addEventListener("error", errorWrap);
     return {
         exitRoom: () => {
             exited = true;
             ws.close();
             ws.removeEventListener("message", onmessage);
             if (onOpen) ws.removeEventListener("open", onOpen);
-            if (onClose) ws.removeEventListener("close", onClose);
-            if (onError) ws.removeEventListener("error", onError);
+            if (onClose) ws.removeEventListener("close", closeWrap);
+            if (onError) ws.removeEventListener("error", errorWrap);
         },
     };
 }
