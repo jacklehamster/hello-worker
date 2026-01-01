@@ -7,120 +7,121 @@ export interface IPeer<T extends string = string, P = any> {
 /**
  * enterRoom connects to the signaling room via WebSocket.
  */
-export function enterRoom<T extends string, P = any>({
-    userId,
-    appId,
-    room,
-    host,
-    onOpen,
-    onClose,
-    onError,
-    logLine,
-    onPeerJoined,
-    onPeerLeft,
-    onMessage,
-    autoRejoin = true,
-}: {
-    userId: string;
-    appId: string;
-    room: string;
-    host: string;
+export function enterRoom<T extends string, P = any>(params: {
+    userId: string; appId: string; room: string; host: string;
     onOpen?: () => void;
-    onClose?: (ev: Pick<CloseEvent, "code"|"reason"|"wasClean">) => void;
+    onClose?: (ev: Pick<CloseEvent, "code" | "reason" | "wasClean">) => void;
     onError?: () => void;
     logLine?: (direction: string, obj?: any) => void;
-    onPeerJoined(users: IPeer<T, P>[]) : void;
-    onPeerLeft(users: {userId: string, peerId: string}[]) : void;
-    onMessage(type: T, payload: P, from: IPeer<T, P>) : void;
+    onPeerJoined(users: IPeer<T, P>[]): void;
+    onPeerLeft(users: { userId: string, peerId: string }[]): void;
+    onMessage(type: T, payload: P, from: IPeer<T, P>): void;
     autoRejoin?: boolean;
 }): { exitRoom: () => void } {
-    const wsUrl = `wss://${host}/room/${appId}/${room}?userId=${encodeURIComponent(userId)}`;
-    const ws = new WebSocket(wsUrl);
-    const selfUserId = userId;
+    const { userId, appId, room, host, autoRejoin = true, logLine } = params;
+    
+    let exited = false;
+    let retryCount = 0;
+    let ws: WebSocket;
+    let timeoutId: any;
 
     const peers = new Map<string, IPeer<T, P>>();
-    let exited = false;
+    const wsUrl = `wss://${host}/room/${appId}/${room}?userId=${encodeURIComponent(userId)}`;
+
+    function connect() {
+        if (exited) return;
+
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            retryCount = 0; // Reset backoff on successful connection
+            params.onOpen?.();
+        };
+
+        ws.onmessage = (e: MessageEvent) => {
+            // ... (keep your existing JSON parsing and updatePeers logic here)
+            try {
+                const msg = JSON.parse(e.data);
+                logLine?.("🖥️ ➡️ 👤", msg);
+                if (msg.type === "peer-joined" || msg.type === "peer-left") {
+                    updatePeers(msg.users);
+                } else if (msg.peerId && msg.userId) {
+                    params.onMessage(msg.type, msg.payload, {
+                        userId: msg.userId,
+                        peerId: msg.peerId,
+                        receive: (type: T, payload: P) => send(type, msg.peerId, payload),
+                    });
+                }
+            } catch { logLine?.("⚠️ ERROR", { error: "invalid-json" }); }
+        };
+
+        ws.onclose = (ev: CloseEvent) => {
+            params.onClose?.({ code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
+
+            // 1. Check if we should even try to reconnect
+            const recoverableCodes = [1001, 1006, 1011, 1012, 1013];
+            const isRecoverable = recoverableCodes.includes(ev.code);
+
+            if (autoRejoin && !exited && isRecoverable) {
+                // 2. Exponential Backoff: 1s, 2s, 4s, 8s... capped at 30s
+                const backoff = Math.min(Math.pow(2, retryCount) * 1000, 30000);
+                // 3. Add Jitter: +/- 1000ms randomness
+                const jitter = Math.random() * 1000;
+                const delay = backoff + jitter;
+
+                logLine?.("🔄 RECONNECT", { attempt: retryCount + 1, delayMs: Math.round(delay) });
+                
+                retryCount++;
+                timeoutId = setTimeout(connect, delay);
+            }
+        };
+
+        ws.onerror = () => params.onError?.();
+    }
+
+    // Helper for sending (uses the current ws instance)
     function send(type: T, toPeerId: string, payload: P) {
-        if (exited) return false;
+        if (exited || ws.readyState !== WebSocket.OPEN) return false;
         const obj = { type, to: toPeerId, payload };
         ws.send(JSON.stringify(obj));
         logLine?.("👤 ➡️ 🖥️", obj);
         return true;
     }
 
+    // Helper for peer tracking (logic from your original code)
     function updatePeers(updatedUsers: { peerId: string; userId: string }[]) {
-        const joined: IPeer<T,P>[] = [];
-        const left: Omit<IPeer<T,P>, "receive">[] = [];
+        const joined: IPeer<T, P>[] = [];
+        const left: { userId: string; peerId: string }[] = [];
         const updatedPeerSet = new Set<string>();
-        updatedUsers.forEach(({ userId, peerId }) => {
-            if (userId === selfUserId) return;
+
+        updatedUsers.forEach(({ userId: pUserId, peerId }) => {
+            if (pUserId === userId) return;
             if (!peers.has(peerId)) {
-                const newPeer = { userId, peerId, receive: (type: T, payload: P) => send(type, peerId, payload)};
+                const newPeer = { userId: pUserId, peerId, receive: (t: T, p: P) => send(t, peerId, p) };
                 peers.set(peerId, newPeer);
                 joined.push(newPeer);
             }
             updatedPeerSet.add(peerId);
         });
-        peers.values().forEach(({ peerId, userId }) => {
+
+        for (const [peerId, peer] of peers.entries()) {
             if (!updatedPeerSet.has(peerId)) {
                 peers.delete(peerId);
-                left.push({ peerId, userId });
+                left.push({ peerId, userId: peer.userId });
             }
-        });
-        if (joined.length) onPeerJoined(joined);
-        if (left.length) onPeerLeft(left);
+        }
+        if (joined.length) params.onPeerJoined(joined);
+        if (left.length) params.onPeerLeft(left);
     }
 
-    function onmessage(e: MessageEvent) {
-        let msg: {
-            type: T;
-            peerId: string;
-            userId: string;
-            users: { peerId: string, userId: string }[],
-            payload: P;
-        };
-        try { msg = JSON.parse(e.data); }
-        catch {
-            logLine?.("⚠️ ERROR", { error: "invalid-json" });
-            return;
-        }
+    // Start initial connection
+    connect();
 
-        logLine?.("🖥️ ➡️ 👤", msg);
-
-        // Existing client greets newcomers
-        if (msg.type === "peer-joined" || msg.type === "peer-left") {
-            updatePeers(msg.users);
-            return;
-        }
-        if (msg.peerId && msg.userId) {
-            const { userId, peerId } = msg;
-            onMessage(msg.type, msg.payload, {
-                userId,
-                peerId,
-                receive: (type: T, payload: P) => send(type, peerId, payload),
-            });
-        }
-    };
-
-    ws.addEventListener("message", onmessage);
-    if (onOpen) ws.addEventListener("open", onOpen);
-    const closeWrap = ({code, reason, wasClean}: CloseEvent) => {
-        onClose?.({ code, reason, wasClean });
-    };
-    if (onClose) ws.addEventListener("close", closeWrap);
-    const errorWrap = (e: Event) => {
-        console.error("signal-room error", e);
-        onError?.();
-    };
-    if (onError) ws.addEventListener("error", errorWrap);
     return {
         exitRoom: () => {
             exited = true;
+            clearTimeout(timeoutId);
             ws.close();
-            ws.removeEventListener("message", onmessage);
-            if (onOpen) ws.removeEventListener("open", onOpen);
-            if (onClose) ws.removeEventListener("close", closeWrap);
-            if (onError) ws.removeEventListener("error", errorWrap);
         },
     };
 }
