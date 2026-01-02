@@ -29,6 +29,8 @@ export function collectPeerConnections({
   logLine = console.debug,
   onLeaveUser,
   workerUrl,
+  onRoomReady,
+  onRoomClose,
 }: {
   appId: string;
   rtcConfig?: RTCConfiguration;
@@ -38,6 +40,8 @@ export function collectPeerConnections({
   workerUrl?: URL;
   peerlessUserExpiration?: number;
   receivePeerConnection(connection: { pc: RTCPeerConnection, userId: string, initiator: boolean }): void;
+  onRoomReady?(info: { host: string; room: string }): void;
+  onRoomClose?(info: { host: string; room: string; ev: Pick<CloseEvent, "reason"|"code"|"wasClean"> }): void;
 }) {
   const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
@@ -135,15 +139,15 @@ export function collectPeerConnections({
         autoRejoin: true,
 
         onOpen() {
-          console.log("onOpen");
+          onRoomReady?.({room, host});
           resolve();
         },
         onError() {
-          console.log("onError");
+          console.error("onError");
           reject();
         },
         onClose(ev) {
-          console.log("onClose", ev);
+          onRoomClose?.({room, host, ev});
         },
 
         // Existing peers initiate to the newcomer (Option 1)
