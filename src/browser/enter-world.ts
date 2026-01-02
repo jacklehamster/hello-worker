@@ -5,12 +5,16 @@ type UserListener = (user: string, action: "join"|"leave", users: string[]) => v
 
 export function enterWorld({
   appId, logLine = console.debug, enterRoomFunction = enterRoom, peerlessUserExpiration, workerUrl,
+  onRoomReady,
+  onRoomClose,
 }: {
   appId: string;
   logLine?: (direction: string, obj?: any) => void;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
   peerlessUserExpiration?: number;
   workerUrl?: URL;
+  onRoomReady?(info: { host: string; room: string }): void;
+  onRoomClose?(info: { host: string; room: string; ev: Pick<CloseEvent, "reason"|"code"|"wasClean"> }): void;
 }) {
   const userIds: string[] = [];
   const rtcConfig: RTCConfiguration = {
@@ -47,6 +51,8 @@ export function enterWorld({
     logLine,
     workerUrl,
     peerlessUserExpiration,
+    onRoomReady,
+    onRoomClose,
     onLeaveUser(userId: string) {
       const dc = dataChannels.get(userId);
       try { dc?.close(); } catch { }
