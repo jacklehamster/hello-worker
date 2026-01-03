@@ -191,7 +191,7 @@ export function collectPeerConnections({
                   initiator: true,
                   restart,
                 });
-                await new Promise((resolve) => setTimeout(resolve, 5000));
+                await new Promise((resolve) => setTimeout(resolve, 1000));
                 makeOffer(user);
               }
             }

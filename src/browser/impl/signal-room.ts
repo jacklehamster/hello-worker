@@ -55,7 +55,6 @@ export function enterRoom<T extends string, P = any>(params: {
         initialConnection = false;
       }
       retryCount = 0; // Reset backoff on successful connection
-      logLine?.("🔗 CONNECTED");
     };
 
     ws.onmessage = (e: MessageEvent) => {
