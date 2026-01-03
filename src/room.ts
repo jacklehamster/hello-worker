@@ -1,4 +1,9 @@
-import { WebSocket, DurableObject, DurableObjectState, Request } from "@cloudflare/workers-types";
+import {
+  WebSocket,
+  DurableObject,
+  DurableObjectState,
+  Request,
+} from "@cloudflare/workers-types";
 
 type AnyJson =
   | null
@@ -15,7 +20,7 @@ function getAttachment(ws: WebSocket): Attachment | null {
     return ws.deserializeAttachment() as Attachment | null;
   } catch {
     return null;
-  };
+  }
 }
 
 export class Room implements DurableObject {
@@ -39,14 +44,26 @@ export class Room implements DurableObject {
     const peerId = `peer-${crypto.randomUUID()}`;
     server.serializeAttachment({ peerId, userId } satisfies Attachment);
 
-    console.debug(`Room ${this.state.id.toString()} got new peer: ${peerId} (userId=${userId})`);
+    console.debug(
+      `Room ${this.state.id.toString()} got new peer: ${peerId} (userId=${userId})`
+    );
 
     // Notify existing peers about the newcomer
     const sockets = this.state.getWebSockets();
     for (const ws of this.state.getWebSockets()) {
       if (ws === server) continue;
       try {
-        ws.send(JSON.stringify({ type: "peer-joined", peerId, userId, users: this.getAttachments(sockets).map(({ userId, peerId }) => ({ userId, peerId })) }));
+        ws.send(
+          JSON.stringify({
+            type: "peer-joined",
+            peerId,
+            userId,
+            users: this.getAttachments(sockets).map(({ userId, peerId }) => ({
+              userId,
+              peerId,
+            })),
+          })
+        );
       } catch {}
     }
 
@@ -54,12 +71,19 @@ export class Room implements DurableObject {
   }
 
   private getAttachments(websockets: WebSocket[]) {
-    return websockets.map((w) => getAttachment(w)).filter((a): a is Attachment => !!a);
+    return websockets
+      .map((w) => getAttachment(w))
+      .filter((a): a is Attachment => !!a);
   }
 
   webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
     const attachment = getAttachment(ws);
-    console.debug(`Room ${this.state.id.toString()} got message from ${attachment}:`, message);
+    console.debug(
+      `Room ${this.state.id.toString()} got message from ${
+        attachment?.userId
+      }/${attachment?.peerId}:`,
+      message
+    );
 
     if (!attachment) {
       // This should not happen after the attachment fix,
@@ -89,7 +113,7 @@ export class Room implements DurableObject {
 
     // Generic relay: require msg.to
     if (typeof msg.to === "string") {
-      const toPeerId = msg.to;
+      const toUserId = msg.to;
 
       const out = {
         type: msg.type,
@@ -99,7 +123,7 @@ export class Room implements DurableObject {
       };
 
       for (const other of this.state.getWebSockets()) {
-        if (getAttachment(other)?.peerId === toPeerId) {
+        if (getAttachment(other)?.userId === toUserId) {
           try {
             other.send(JSON.stringify(out));
           } catch {}
@@ -107,17 +131,22 @@ export class Room implements DurableObject {
         }
       }
 
-      ws.send(JSON.stringify({ type: "error", error: "peer-not-found", to: toPeerId }));
+      ws.send(
+        JSON.stringify({ type: "error", error: "user-not-found", to: toUserId })
+      );
       return;
     }
 
     ws.send(JSON.stringify({ type: "error", error: "missing-to" }));
   }
 
-
   webSocketClose(ws: WebSocket) {
     const attachment = getAttachment(ws);
-    console.debug(`Room ${this.state.id.toString()} peer disconnected:`, attachment);
+    console.debug(
+      `Room ${this.state.id.toString()} peer disconnected: ${
+        attachment?.userId
+      }/${attachment?.peerId}`
+    );
 
     if (!attachment) return;
 
@@ -128,14 +157,25 @@ export class Room implements DurableObject {
     for (const other of this.state.getWebSockets()) {
       if (other === ws) continue;
       try {
-        other.send(JSON.stringify({ type: "peer-left", peerId, userId,
-          users: this.getAttachments(sockets.filter(s => s !== ws)).map(({ userId, peerId }) => ({ userId, peerId })) }));
+        other.send(
+          JSON.stringify({
+            type: "peer-left",
+            peerId,
+            userId,
+            users: this.getAttachments(sockets.filter((s) => s !== ws)).map(
+              ({ userId, peerId }) => ({ userId, peerId })
+            ),
+          })
+        );
       } catch {}
     }
-  }  
+  }
 
   webSocketError(ws: WebSocket, err: unknown) {
     const peerId = getAttachment(ws);
-    console.error(`Room ${this.state.id.toString()} ws error for peer ${peerId}:`, err);
+    console.error(
+      `Room ${this.state.id.toString()} ws error for peer ${peerId}:`,
+      err
+    );
   }
 }

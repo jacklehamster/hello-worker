@@ -35,11 +35,11 @@ export function enterRoom<T extends string, P = any>(params: {
   )}`;
 
   // Helper for sending (uses the current ws instance)
-  function send(type: T, toPeerId: string, payload: P) {
-    console.log("SENDING", type, toPeerId, payload, ws.readyState, ws);
+  function send(type: T, to: string, payload: P) {
+    console.log("SENDING", type, to, payload, ws.readyState, ws);
     if (!ws) return false;
     if (exited || ws.readyState !== WebSocket.OPEN) return false;
-    const obj = { type, to: toPeerId, payload };
+    const obj = { type, to, payload };
     ws.send(JSON.stringify(obj));
     logLine?.("👤 ➡️ 🖥️", obj);
     return true;
@@ -70,7 +70,7 @@ export function enterRoom<T extends string, P = any>(params: {
           params.onMessage(msg.type, msg.payload, {
             userId: msg.userId,
             peerId: msg.peerId,
-            receive: (type: T, payload: P) => send(type, msg.peerId, payload),
+            receive: (type: T, payload: P) => send(type, msg.userId, payload),
           });
         }
       } catch {
@@ -121,7 +121,7 @@ export function enterRoom<T extends string, P = any>(params: {
         const newPeer = {
           userId: pUserId,
           peerId,
-          receive: (t: T, p: P) => send(t, peerId, p),
+          receive: (t: T, p: P) => send(t, pUserId, p),
         };
         peers.set(peerId, newPeer);
         joined.push(newPeer);
