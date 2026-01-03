@@ -1,6 +1,6 @@
 export interface IPeer<T extends string = string, P = any> {
   userId: string;
-  peerId: string;
+  // peerId: string;
   receive(type: T, payload: P): boolean;
 }
 
@@ -69,7 +69,7 @@ export function enterRoom<T extends string, P = any>(params: {
         } else if (msg.peerId && msg.userId) {
           params.onMessage(msg.type, msg.payload, {
             userId: msg.userId,
-            peerId: msg.peerId,
+            // peerId: msg.peerId,
             receive: (type: T, payload: P) => send(type, msg.userId, payload),
           });
         }
@@ -120,7 +120,6 @@ export function enterRoom<T extends string, P = any>(params: {
       if (!peers.has(peerId)) {
         const newPeer = {
           userId: pUserId,
-          peerId,
           receive: (t: T, p: P) => send(t, pUserId, p),
         };
         peers.set(peerId, newPeer);

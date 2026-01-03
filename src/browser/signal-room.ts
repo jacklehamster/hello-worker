@@ -26,7 +26,7 @@ export function enterRoom<T extends string, P = any>({
   onClose?: (ev: Pick<CloseEvent, "code" | "reason" | "wasClean">) => void;
   onError?: () => void;
   onPeerJoined: (users: IPeer<T, P>[]) => void;
-  onPeerLeft: (users: { userId: string; peerId: string }[]) => void;
+  onPeerLeft: (users: { userId: string }[]) => void;
   onMessage: (type: T, payload: P, from: IPeer<T, P>) => void;
   logLine?: (direction: string, obj?: any) => void;
 
@@ -57,21 +57,14 @@ export function enterRoom<T extends string, P = any>({
   const worker = new Worker(workerUrl, { type: "module" });
   let exited = false;
 
-  function makeUser({
-    userId,
-    peerId,
-  }: {
-    userId: string;
-    peerId: string;
-  }): IPeer<T, P> {
+  function makeUser({ userId }: { userId: string }): IPeer<T, P> {
     return {
       userId,
-      peerId,
       receive: (type: T, payload: P) => {
         if (exited) return false;
         worker.postMessage({
           cmd: "send",
-          toPeerId: peerId,
+          toUserId: userId,
           type,
           payload,
         } as WorkerCommand);
@@ -89,16 +82,10 @@ export function enterRoom<T extends string, P = any>({
       onClose?.(ev.ev);
     } else if (ev.kind === "error") onError?.();
     else if (ev.kind === "peer-joined")
-      onPeerJoined(
-        ev.users.map((ev) => makeUser({ userId: ev.userId, peerId: ev.peerId }))
-      );
+      onPeerJoined(ev.users.map((ev) => makeUser({ userId: ev.userId })));
     else if (ev.kind === "peer-left") onPeerLeft(ev.users);
     else if (ev.kind === "message")
-      onMessage(
-        ev.type,
-        ev.payload,
-        makeUser({ userId: ev.fromUserId, peerId: ev.fromPeerId })
-      );
+      onMessage(ev.type, ev.payload, makeUser({ userId: ev.fromUserId }));
     else if (ev.kind === "log") logLine?.(ev.direction, ev.obj);
   };
 

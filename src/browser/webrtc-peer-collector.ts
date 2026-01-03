@@ -12,7 +12,7 @@ type UserState = {
   pendingRemoteIce: RTCIceCandidateInit[];
 
   // the signaling "user" handle so we can send messages
-  peers: Map<string, IPeer<SigType, SigPayload>>;
+  peer: IPeer<SigType, SigPayload>;
 
   expirationTimeout?: number;
 };
@@ -58,10 +58,7 @@ export function collectPeerConnections({
     // Send local ICE candidates to this peer
     state.pc.onicecandidate = (ev) => {
       if (!ev.candidate) return;
-      for (let user of state.peers.values()) {
-        const success = user.receive("ice", ev.candidate.toJSON());
-        if (success) break;
-      }
+      state.peer.receive("ice", ev.candidate.toJSON());
     };
 
     state.pc.onconnectionstatechange = () => {
@@ -81,7 +78,7 @@ export function collectPeerConnections({
         userId: peer.userId,
         pc: new RTCPeerConnection(rtcConfig),
         pendingRemoteIce: [],
-        peers: new Map(),
+        peer,
       };
       users.set(peer.userId, newState);
 
@@ -95,7 +92,7 @@ export function collectPeerConnections({
       clearTimeout(state.expirationTimeout);
       state.expirationTimeout = 0;
     }
-    state.peers.set(peer.peerId, peer);
+    state.peer = peer;
     return [state, isNewPeer];
   }
 
@@ -209,17 +206,14 @@ export function collectPeerConnections({
           });
         },
 
-        onPeerLeft(leavingUsers: { userId: string; peerId: string }[]) {
-          leavingUsers.forEach(({ userId, peerId }) => {
+        onPeerLeft(leavingUsers: { userId: string }[]) {
+          leavingUsers.forEach(({ userId }) => {
             const state = users.get(userId);
             if (!state) return;
-            state.peers.delete(peerId);
-            if (!state.peers.size) {
-              state.expirationTimeout = setTimeout(
-                () => leaveUser(userId),
-                peerlessUserExpiration ?? 0
-              );
-            }
+            state.expirationTimeout = setTimeout(
+              () => leaveUser(userId),
+              peerlessUserExpiration ?? 0
+            );
           });
         },
 
