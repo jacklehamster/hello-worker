@@ -44,12 +44,14 @@ export function enterWorld({
   function createDataChannel(
     pc: RTCPeerConnection,
     peerUserId: string,
-    initiator: boolean
+    initiator: boolean,
+    onDisconnect?: () => void
   ) {
     if (initiator) {
       const dc = pc.createDataChannel("data", dataChannelOptions);
       wireDataChannel(peerUserId, dc);
       dataChannels.set(peerUserId, dc);
+      if (onDisconnect) dc.addEventListener("close", onDisconnect);
     } else {
       function listener(ev: RTCDataChannelEvent) {
         const dc = ev.channel;
@@ -107,8 +109,8 @@ export function enterWorld({
       } catch {}
       dataChannels.delete(userId);
     },
-    receivePeerConnection({ pc, userId, initiator }) {
-      createDataChannel(pc, userId, initiator);
+    receivePeerConnection({ pc, userId, initiator, onDisconnect }) {
+      createDataChannel(pc, userId, initiator, onDisconnect);
     },
   });
 
