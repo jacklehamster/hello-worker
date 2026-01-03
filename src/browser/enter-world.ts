@@ -1,10 +1,22 @@
 import { EnterRoom, enterRoom } from "./signal-room";
-import { SigType, SigPayload, collectPeerConnections } from "./webrtc-peer-collector";
+import {
+  SigType,
+  SigPayload,
+  collectPeerConnections,
+} from "./webrtc-peer-collector";
 
-type UserListener = (user: string, action: "join"|"leave", users: string[]) => void;
+type UserListener = (
+  user: string,
+  action: "join" | "leave",
+  users: string[]
+) => void;
 
 export function enterWorld({
-  appId, logLine = console.debug, enterRoomFunction = enterRoom, peerlessUserExpiration, workerUrl,
+  appId,
+  logLine = console.debug,
+  enterRoomFunction = enterRoom,
+  peerlessUserExpiration,
+  workerUrl,
   onRoomReady,
   onRoomClose,
   dataChannelOptions,
@@ -15,7 +27,11 @@ export function enterWorld({
   peerlessUserExpiration?: number;
   workerUrl?: URL;
   onRoomReady?(info: { host: string; room: string }): void;
-  onRoomClose?(info: { host: string; room: string; ev: Pick<CloseEvent, "reason"|"code"|"wasClean"> }): void;
+  onRoomClose?(info: {
+    host: string;
+    room: string;
+    ev: Pick<CloseEvent, "reason" | "code" | "wasClean">;
+  }): void;
   dataChannelOptions?: RTCDataChannelInit;
 }) {
   const userIds: string[] = [];
@@ -25,28 +41,62 @@ export function enterWorld({
 
   const messagesListeners = new Set<(data: any, from: string) => void>();
 
+  function createDataChannel(
+    pc: RTCPeerConnection,
+    peerUserId: string,
+    initiator: boolean
+  ) {
+    if (initiator) {
+      const dc = pc.createDataChannel("data", dataChannelOptions);
+      wireDataChannel(peerUserId, dc);
+      dataChannels.set(peerUserId, dc);
+      dc.addEventListener("close", () => {
+        setTimeout(() => {
+          createDataChannel(pc, peerUserId, initiator);
+        }, 1000);
+      });
+    } else {
+      function listener(ev: RTCDataChannelEvent) {
+        const dc = ev.channel;
+        wireDataChannel(peerUserId, dc);
+        dataChannels.set(peerUserId, dc);
+        pc.ondatachannel = null;
+      }
+      pc.addEventListener("datachannel", listener);
+      return () => {
+        pc.removeEventListener("datachannel", listener);
+      };
+    }
+  }
+
   function wireDataChannel(userId: string, dc: RTCDataChannel) {
     dc.onopen = () => {
       logLine("💬", { event: "dc-open", userId });
       userIds.push(userId);
-      userListeners.forEach(listener => listener(userId, "join", userIds));
+      userListeners.forEach((listener) => listener(userId, "join", userIds));
     };
     dc.onmessage = ({ data }) => {
-      messagesListeners.forEach(listener => listener(data as any, userId));
+      messagesListeners.forEach((listener) => listener(data as any, userId));
       logLine("💬", { event: "dc-message", userId, data });
     };
-    dc.onclose = () => {
+    dc.addEventListener("close", () => {
       logLine("💬", { event: "dc-close", userId });
       userIds.splice(userIds.indexOf(userId), 1);
-      userListeners.forEach(listener => listener(userId, "leave", userIds));
-    };
+      userListeners.forEach((listener) => listener(userId, "leave", userIds));
+    });
     dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId });
   }
 
   const dataChannels = new Map<string, RTCDataChannel>();
   const userListeners = new Set<UserListener>();
 
-  const { userId, enterRoom, exitRoom, leaveUser, end: endPeerCollection } = collectPeerConnections({
+  const {
+    userId,
+    enterRoom,
+    exitRoom,
+    leaveUser,
+    end: endPeerCollection,
+  } = collectPeerConnections({
     appId,
     rtcConfig,
     enterRoomFunction,
@@ -57,22 +107,13 @@ export function enterWorld({
     onRoomClose,
     onLeaveUser(userId: string) {
       const dc = dataChannels.get(userId);
-      try { dc?.close(); } catch { }
+      try {
+        dc?.close();
+      } catch {}
       dataChannels.delete(userId);
     },
     receivePeerConnection({ pc, userId, initiator }) {
-      if (initiator) {
-        const dc = pc.createDataChannel("data", dataChannelOptions);
-        wireDataChannel(userId, dc);
-        dataChannels.set(userId, dc);
-      } else {
-        pc.ondatachannel = (ev) => {
-          const dc = ev.channel;
-          wireDataChannel(userId, dc);
-          dataChannels.set(userId, dc);
-          pc.ondatachannel = null;
-        };
-      }
+      createDataChannel(pc, userId, initiator);
     },
   });
 
@@ -95,14 +136,14 @@ export function enterWorld({
   }
 
   function removeUserListener(listener: UserListener) {
-      userListeners.delete(listener);
+    userListeners.delete(listener);
   }
 
   function addUserListener(listener: UserListener) {
-      userListeners.add(listener);
-      return () => {
-        removeUserListener(listener);
-      };
+    userListeners.add(listener);
+    return () => {
+      removeUserListener(listener);
+    };
   }
 
   return {
@@ -118,7 +159,9 @@ export function enterWorld({
     removeUserListener,
     end() {
       dataChannels.forEach((dataChannel) => {
-        try { dataChannel.close(); } catch { }
+        try {
+          dataChannel.close();
+        } catch {}
       });
       dataChannels.clear();
       endPeerCollection();
