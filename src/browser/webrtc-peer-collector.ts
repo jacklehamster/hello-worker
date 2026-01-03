@@ -177,9 +177,6 @@ export function collectPeerConnections({
             if (!isNewPeer) return;
             const pc = state.pc;
             receivePeerConnection({ pc, userId: user.userId, initiator: true });
-            pc.addEventListener("connectionstatechange", (e) => {
-              console.log(pc.connectionState);
-            });
             makeOffer(user);
           });
         },

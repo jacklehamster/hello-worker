@@ -50,11 +50,6 @@ export function enterWorld({
       const dc = pc.createDataChannel("data", dataChannelOptions);
       wireDataChannel(peerUserId, dc);
       dataChannels.set(peerUserId, dc);
-      dc.addEventListener("close", () => {
-        setTimeout(() => {
-          createDataChannel(pc, peerUserId, initiator);
-        }, 1000);
-      });
     } else {
       function listener(ev: RTCDataChannelEvent) {
         const dc = ev.channel;
