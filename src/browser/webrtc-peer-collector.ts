@@ -192,6 +192,7 @@ export function collectPeerConnections({
                   pc: state.pc,
                   userId: user.userId,
                   initiator: true,
+                  restart,
                 });
                 await new Promise((resolve) => setTimeout(resolve, 5000));
                 makeOffer(user);
@@ -232,6 +233,11 @@ export function collectPeerConnections({
               pc,
               userId: from.userId,
               initiator: false,
+              restart() {
+                //  reset PC
+                state.pc = new RTCPeerConnection(rtcConfig);
+                setupPC(state);
+              },
             });
             // Responder: set remote offer
             await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
