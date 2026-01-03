@@ -53,6 +53,25 @@ export function collectPeerConnections({
   const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
 
+  function setupPC(state: UserState) {
+    // Send local ICE candidates to this peer
+    state.pc.onicecandidate = (ev) => {
+      if (!ev.candidate) return;
+      for (let user of state.peers.values()) {
+        const success = user.receive("ice", ev.candidate.toJSON());
+        if (success) break;
+      }
+    };
+
+    state.pc.onconnectionstatechange = () => {
+      logLine("💬", {
+        event: "pc-state",
+        userId: state.userId,
+        state: state.pc.connectionState,
+      });
+    };
+  }
+
   function getPeer(peer: IPeer<SigType, SigPayload>): [UserState, boolean] {
     let state = users.get(peer.userId);
     let isNewPeer = false;
@@ -66,22 +85,7 @@ export function collectPeerConnections({
       newState.peers.set(peer.peerId, peer);
       users.set(peer.userId, newState);
 
-      // Send local ICE candidates to this peer
-      newState.pc.onicecandidate = (ev) => {
-        if (!ev.candidate) return;
-        for (let user of newState.peers.values()) {
-          const success = user.receive("ice", ev.candidate.toJSON());
-          if (success) break;
-        }
-      };
-
-      newState.pc.onconnectionstatechange = () => {
-        logLine("💬", {
-          event: "pc-state",
-          userId: newState.userId,
-          state: newState.pc.connectionState,
-        });
-      };
+      setupPC(newState);
       state = newState;
 
       //  New user
@@ -262,6 +266,13 @@ export function collectPeerConnections({
       roomsEntered.clear();
       users.forEach(({ userId }) => leaveUser(userId));
       users.clear();
+    },
+    restart(userId: string) {
+      const state = users.get(userId);
+      if (state) {
+        state.pc = new RTCPeerConnection(rtcConfig);
+        setupPC(state);
+      }
     },
   };
 }

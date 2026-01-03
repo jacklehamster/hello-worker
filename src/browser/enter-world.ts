@@ -50,12 +50,6 @@ export function enterWorld({
       const dc = pc.createDataChannel("data", dataChannelOptions);
       wireDataChannel(peerUserId, dc);
       dataChannels.set(peerUserId, dc);
-      dc.addEventListener("close", () => {
-        setTimeout(() => {
-          //  This fails. Need to reset the pc
-          createDataChannel(pc, peerUserId, initiator);
-        }, 1000);
-      });
     } else {
       function listener(ev: RTCDataChannelEvent) {
         const dc = ev.channel;
@@ -84,6 +78,7 @@ export function enterWorld({
       logLine("💬", { event: "dc-close", userId });
       userIds.splice(userIds.indexOf(userId), 1);
       userListeners.forEach((listener) => listener(userId, "leave", userIds));
+      restart(userId);
     });
     dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId });
   }
@@ -97,6 +92,7 @@ export function enterWorld({
     exitRoom,
     leaveUser,
     end: endPeerCollection,
+    restart,
   } = collectPeerConnections({
     appId,
     rtcConfig,
