@@ -7,6 +7,7 @@ export function enterWorld({
   appId, logLine = console.debug, enterRoomFunction = enterRoom, peerlessUserExpiration, workerUrl,
   onRoomReady,
   onRoomClose,
+  dataChannelOptions,
 }: {
   appId: string;
   logLine?: (direction: string, obj?: any) => void;
@@ -15,6 +16,7 @@ export function enterWorld({
   workerUrl?: URL;
   onRoomReady?(info: { host: string; room: string }): void;
   onRoomClose?(info: { host: string; room: string; ev: Pick<CloseEvent, "reason"|"code"|"wasClean"> }): void;
+  dataChannelOptions?: RTCDataChannelInit;
 }) {
   const userIds: string[] = [];
   const rtcConfig: RTCConfiguration = {
@@ -60,7 +62,7 @@ export function enterWorld({
     },
     receivePeerConnection({ pc, userId, initiator }) {
       if (initiator) {
-        const dc = pc.createDataChannel("data");
+        const dc = pc.createDataChannel("data", dataChannelOptions);
         wireDataChannel(userId, dc);
         dataChannels.set(userId, dc);
       } else {

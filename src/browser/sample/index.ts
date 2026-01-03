@@ -81,6 +81,9 @@ export function testWebRTC() {
     logLine,
     appId: "webRTC-test",
     workerUrl: new URL("../signal-room.worker.js", import.meta.url),
+    dataChannelOptions: {
+      ordered: false,
+    },
   });
 
 
