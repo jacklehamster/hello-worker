@@ -4,17 +4,30 @@ import { enterRoom, type IPeer } from "./impl/signal-room.js";
 
 export type RoomEvent<T extends string = string, P = any> =
   | { kind: "open" }
-  | { kind: "close", ev: Pick<CloseEvent,"code"|"reason"|"wasClean"> }
+  | { kind: "close"; ev: Pick<CloseEvent, "code" | "reason" | "wasClean"> }
   | { kind: "error" }
-  | { kind: "peer-joined"; users: {userId: string, peerId: string}[] }
-  | { kind: "peer-left"; users: {userId: string, peerId: string}[] }
-  | { kind: "message"; type: T; payload: P; fromUserId: string; fromPeerId: string }
+  | { kind: "peer-joined"; users: { userId: string; peerId: string }[] }
+  | { kind: "peer-left"; users: { userId: string; peerId: string }[] }
+  | {
+      kind: "message";
+      type: T;
+      payload: P;
+      fromUserId: string;
+      fromPeerId: string;
+    }
   | { kind: "log"; direction: string; obj?: any };
 
 export type WorkerCommand<T extends string = string, P = any> =
-  | { cmd: "enter"; userId: string; appId: string; room: string; host: string; autoRejoin: boolean }
+  | {
+      cmd: "enter";
+      userId: string;
+      appId: string;
+      room: string;
+      host: string;
+      autoRejoin: boolean;
+    }
   | { cmd: "exit" }
-  | { cmd: "send"; toPeerId: string; type: T; payload: P };
+  | { cmd: "send"; toUserId: string; type: T; payload: P };
 
 let exitRoom: (() => void) | null = null;
 
@@ -42,7 +55,12 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       host: msg.host,
       autoRejoin: msg.autoRejoin,
       onOpen: () => emit({ kind: "open" }),
-      onClose: ({ code, reason, wasClean }: Pick<CloseEvent, "code"|"reason"|"wasClean">) => emit({ kind: "close", ev: {code, reason, wasClean} }),
+      onClose: ({
+        code,
+        reason,
+        wasClean,
+      }: Pick<CloseEvent, "code" | "reason" | "wasClean">) =>
+        emit({ kind: "close", ev: { code, reason, wasClean } }),
       onError: () => emit({ kind: "error" }),
       logLine: (direction: string, obj?: any) => {
         console.debug(`[signal-room.worker] ${direction}`, obj);
@@ -50,17 +68,26 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       },
       onPeerJoined: (users: IPeer[]) => {
         // Save the ability to send to this peer
-        users.forEach(({ peerId, receive }) => peerSend.set(peerId, receive));
-        emit({ kind: "peer-joined", users: users.map(({ userId, peerId }) => ({ userId, peerId })) });
+        users.forEach(({ userId, receive }) => peerSend.set(userId, receive));
+        emit({
+          kind: "peer-joined",
+          users: users.map(({ userId, peerId }) => ({ userId, peerId })),
+        });
       },
-      onPeerLeft: (users: {userId: string, peerId: string}[]) => {
-        users.forEach(({ peerId }) => peerSend.delete(peerId));
+      onPeerLeft: (users: { userId: string; peerId: string }[]) => {
+        users.forEach(({ userId }) => peerSend.delete(userId));
         emit({ kind: "peer-left", users });
       },
       onMessage: (type: any, payload: any, from: IPeer) => {
         // We can also learn peerSend via onMessage in case join events vary
-        peerSend.set(from.peerId, from.receive);
-        emit({ kind: "message", type, payload, fromUserId: from.userId, fromPeerId: from.peerId });
+        peerSend.set(from.userId, from.receive);
+        emit({
+          kind: "message",
+          type,
+          payload,
+          fromUserId: from.userId,
+          fromPeerId: from.peerId,
+        });
       },
     });
 
@@ -69,7 +96,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
   }
 
   if (msg.cmd === "send") {
-    const sendFn = peerSend.get(msg.toPeerId);
+    const sendFn = peerSend.get(msg.toUserId);
     if (sendFn) sendFn(msg.type, msg.payload);
     return;
   }

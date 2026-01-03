@@ -72,7 +72,7 @@ export function enterRoom<T extends string, P = any>({
         if (exited) return false;
         worker.postMessage({
           cmd: "send",
-          toPeerId: peerId,
+          toUserId: userId,
           type,
           payload,
         } as WorkerCommand);
