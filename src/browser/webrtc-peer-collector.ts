@@ -19,7 +19,6 @@ type UserState = {
 
 const DEFAULT_ENTER_ROOM = enterRoom;
 
-
 export function collectPeerConnections({
   appId,
   receivePeerConnection,
@@ -39,9 +38,17 @@ export function collectPeerConnections({
   logLine?: (direction: string, obj?: any) => void;
   workerUrl?: URL;
   peerlessUserExpiration?: number;
-  receivePeerConnection(connection: { pc: RTCPeerConnection, userId: string, initiator: boolean }): void;
+  receivePeerConnection(connection: {
+    pc: RTCPeerConnection;
+    userId: string;
+    initiator: boolean;
+  }): void;
   onRoomReady?(info: { host: string; room: string }): void;
-  onRoomClose?(info: { host: string; room: string; ev: Pick<CloseEvent, "reason"|"code"|"wasClean"> }): void;
+  onRoomClose?(info: {
+    host: string;
+    room: string;
+    ev: Pick<CloseEvent, "reason" | "code" | "wasClean">;
+  }): void;
 }) {
   const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
@@ -50,32 +57,36 @@ export function collectPeerConnections({
     let state = users.get(peer.userId);
     let isNewPeer = false;
     if (!state) {
-        const newState: UserState = {
-          userId: peer.userId,
-          pc: new RTCPeerConnection(rtcConfig),
-          pendingRemoteIce: [],
-          peers: new Map(),
-        };
-        newState.peers.set(peer.peerId, peer);
-        users.set(peer.userId, newState);
+      const newState: UserState = {
+        userId: peer.userId,
+        pc: new RTCPeerConnection(rtcConfig),
+        pendingRemoteIce: [],
+        peers: new Map(),
+      };
+      newState.peers.set(peer.peerId, peer);
+      users.set(peer.userId, newState);
 
-        // Send local ICE candidates to this peer
-        newState.pc.onicecandidate = (ev) => {
-          if (!ev.candidate) return;
-          for(let user of newState.peers.values()) {
-              const success = user.receive("ice", ev.candidate.toJSON());
-              if (success) break;
-          }
-        };
-            
-        newState.pc.onconnectionstatechange = () => {
-          logLine("💬", { event: "pc-state", userId: newState.userId, state: newState.pc.connectionState });
-        };
-        state = newState;
+      // Send local ICE candidates to this peer
+      newState.pc.onicecandidate = (ev) => {
+        if (!ev.candidate) return;
+        for (let user of newState.peers.values()) {
+          const success = user.receive("ice", ev.candidate.toJSON());
+          if (success) break;
+        }
+      };
 
-        //  New user
-        users.set(state.userId, state);
-        isNewPeer = true;
+      newState.pc.onconnectionstatechange = () => {
+        logLine("💬", {
+          event: "pc-state",
+          userId: newState.userId,
+          state: newState.pc.connectionState,
+        });
+      };
+      state = newState;
+
+      //  New user
+      users.set(state.userId, state);
+      isNewPeer = true;
     } else if (state) {
       clearTimeout(state.expirationTimeout);
       state.expirationTimeout = 0;
@@ -88,7 +99,9 @@ export function collectPeerConnections({
     onLeaveUser?.(userId);
     const p = users.get(userId);
     if (!p) return;
-    try { p.pc.close(); } catch {}
+    try {
+      p.pc.close();
+    } catch {}
     users.delete(userId);
   }
 
@@ -102,14 +115,21 @@ export function collectPeerConnections({
       try {
         await state.pc.addIceCandidate(ice);
       } catch (e) {
-        logLine("⚠️ ERROR", { error: "add-ice-failed", userId: state.userId, detail: String(e) });
+        logLine("⚠️ ERROR", {
+          error: "add-ice-failed",
+          userId: state.userId,
+          detail: String(e),
+        });
       }
     }
   }
 
-  const roomsEntered = new Map<string, { room: string; host: string; exitRoom: () => void }>();
+  const roomsEntered = new Map<
+    string,
+    { room: string; host: string; exitRoom: () => void }
+  >();
 
-  function exit({ room, host }: { room: string; host: string; }) {
+  function exit({ room, host }: { room: string; host: string }) {
     const key = `${host}/room/${room}`;
     const session = roomsEntered.get(key);
     if (session) {
@@ -118,18 +138,18 @@ export function collectPeerConnections({
     }
   }
 
-  function enter({ room, host }: { room: string; host: string; }) {
+  function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>((resolve, reject) => {
       async function makeOffer(user: IPeer) {
-          // Offer flow: createOffer -> setLocalDescription -> send localDescription
-          const [state] = getPeer(user);
-          const pc = state.pc;
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          user.receive("offer", pc.localDescription?.toJSON()!);
+        // Offer flow: createOffer -> setLocalDescription -> send localDescription
+        const [state] = getPeer(user);
+        const pc = state.pc;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        user.receive("offer", pc.localDescription?.toJSON()!);
       }
 
-      const { exitRoom, } = enterRoom({
+      const { exitRoom } = enterRoom({
         userId,
         appId,
         room,
@@ -139,7 +159,7 @@ export function collectPeerConnections({
         autoRejoin: true,
 
         onOpen() {
-          onRoomReady?.({room, host});
+          onRoomReady?.({ room, host });
           resolve();
         },
         onError() {
@@ -147,16 +167,19 @@ export function collectPeerConnections({
           reject();
         },
         onClose(ev) {
-          onRoomClose?.({room, host, ev});
+          onRoomClose?.({ room, host, ev });
         },
 
         // Existing peers initiate to the newcomer (Option 1)
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
-          joiningUsers.forEach(user => {
+          joiningUsers.forEach((user) => {
             const [state, isNewPeer] = getPeer(user);
             if (!isNewPeer) return;
             const pc = state.pc;
             receivePeerConnection({ pc, userId: user.userId, initiator: true });
+            pc.addEventListener("connectionstatechange", (e) => {
+              console.log(pc.connectionState);
+            });
             makeOffer(user);
           });
         },
@@ -167,7 +190,10 @@ export function collectPeerConnections({
             if (!state) return;
             state.peers.delete(peerId);
             if (!state.peers.size) {
-              state.expirationTimeout = setTimeout(() => leaveUser(userId), peerlessUserExpiration ?? 0);
+              state.expirationTimeout = setTimeout(
+                () => leaveUser(userId),
+                peerlessUserExpiration ?? 0
+              );
             }
           });
         },
@@ -177,7 +203,11 @@ export function collectPeerConnections({
           const pc = state.pc;
 
           if (type === "offer") {
-            receivePeerConnection({ pc, userId: from.userId, initiator: false });
+            receivePeerConnection({
+              pc,
+              userId: from.userId,
+              initiator: false,
+            });
             // Responder: set remote offer
             await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
 
@@ -211,7 +241,11 @@ export function collectPeerConnections({
             try {
               await pc.addIceCandidate(ice);
             } catch (e) {
-              logLine("⚠️ ERROR", { error: "add-ice-failed", userId: state.userId, detail: String(e) });
+              logLine("⚠️ ERROR", {
+                error: "add-ice-failed",
+                userId: state.userId,
+                detail: String(e),
+              });
             }
             return;
           }
@@ -234,6 +268,3 @@ export function collectPeerConnections({
     },
   };
 }
-
-
-
