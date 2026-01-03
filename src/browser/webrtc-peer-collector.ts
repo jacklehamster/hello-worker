@@ -185,6 +185,7 @@ export function collectPeerConnections({
             function restart() {
               console.log("Restarting");
               const state = users.get(user.userId);
+              console.log(state);
               if (state) {
                 state.pc = new RTCPeerConnection(rtcConfig);
                 setupPC(state);
@@ -194,6 +195,7 @@ export function collectPeerConnections({
                   initiator: true,
                 });
                 makeOffer(user);
+                console.log("makeing offer");
               }
             }
 
