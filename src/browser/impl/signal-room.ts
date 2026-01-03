@@ -34,6 +34,16 @@ export function enterRoom<T extends string, P = any>(params: {
     userId
   )}`;
 
+  // Helper for sending (uses the current ws instance)
+  function send(type: T, toPeerId: string, payload: P) {
+    if (!ws) return false;
+    if (exited || ws.readyState !== WebSocket.OPEN) return false;
+    const obj = { type, to: toPeerId, payload };
+    ws.send(JSON.stringify(obj));
+    logLine?.("👤 ➡️ 🖥️", obj);
+    return true;
+  }
+
   function connect() {
     if (exited) return;
 
@@ -96,15 +106,6 @@ export function enterRoom<T extends string, P = any>(params: {
     };
 
     ws.onerror = () => params.onError?.();
-  }
-
-  // Helper for sending (uses the current ws instance)
-  function send(type: T, toPeerId: string, payload: P) {
-    if (exited || ws.readyState !== WebSocket.OPEN) return false;
-    const obj = { type, to: toPeerId, payload };
-    ws.send(JSON.stringify(obj));
-    logLine?.("👤 ➡️ 🖥️", obj);
-    return true;
   }
 
   // Helper for peer tracking (logic from your original code)
