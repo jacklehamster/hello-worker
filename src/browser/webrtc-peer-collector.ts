@@ -152,7 +152,7 @@ export function collectPeerConnections({
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         user.receive("offer", pc.localDescription?.toJSON()!);
-        console.log("Resend offer", pc.localDescription?.toJSON());
+        console.log("Make offer", pc.localDescription?.toJSON());
       }
 
       const { exitRoom } = enterRoom({
@@ -193,7 +193,7 @@ export function collectPeerConnections({
                   userId: user.userId,
                   initiator: true,
                 });
-                await new Promise((resolve) => setTimeout(resolve, 1000));
+                await new Promise((resolve) => setTimeout(resolve, 5000));
                 makeOffer(user);
               }
             }
