@@ -230,6 +230,15 @@ export function collectPeerConnections({
               pc,
               userId: from.userId,
               initiator: false,
+              restart() {
+                state.pc = new RTCPeerConnection(rtcConfig);
+                setupPC(state);
+                receivePeerConnection({
+                  pc: state.pc,
+                  userId: from.userId,
+                  initiator: false,
+                });
+              },
             });
             // Responder: set remote offer
             await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
