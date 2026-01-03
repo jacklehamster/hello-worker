@@ -75,14 +75,16 @@ export function enterWorld({
       userIds.push(userId);
       userListeners.forEach((listener) => listener(userId, "join", userIds));
     };
-    dc.onmessage = ({ data }) => {
+    const onmessage = ({ data }: MessageEvent) => {
       messagesListeners.forEach((listener) => listener(data as any, userId));
       logLine("💬", { event: "dc-message", userId, data });
     };
+    dc.addEventListener("message", onmessage);
     dc.addEventListener("close", () => {
       logLine("💬", { event: "dc-close", userId });
       userIds.splice(userIds.indexOf(userId), 1);
       userListeners.forEach((listener) => listener(userId, "leave", userIds));
+      dc.removeEventListener("message", onmessage);
       restart?.();
     });
     dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId });
