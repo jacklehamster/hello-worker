@@ -152,6 +152,7 @@ export function collectPeerConnections({
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         user.receive("offer", pc.localDescription?.toJSON()!);
+        console.log("Resend offer", pc.localDescription?.toJSON());
       }
 
       const { exitRoom } = enterRoom({
@@ -226,19 +227,11 @@ export function collectPeerConnections({
           const pc = state.pc;
 
           if (type === "offer") {
+            console.log("got offer", from, payload);
             receivePeerConnection({
               pc,
               userId: from.userId,
               initiator: false,
-              restart() {
-                state.pc = new RTCPeerConnection(rtcConfig);
-                setupPC(state);
-                receivePeerConnection({
-                  pc: state.pc,
-                  userId: from.userId,
-                  initiator: false,
-                });
-              },
             });
             // Responder: set remote offer
             await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
