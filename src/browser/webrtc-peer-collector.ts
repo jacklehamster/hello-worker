@@ -183,7 +183,6 @@ export function collectPeerConnections({
             const pc = state.pc;
 
             async function restart() {
-              await new Promise((resolve) => setTimeout(resolve, 1000));
               const state = users.get(user.userId);
               if (state) {
                 state.pc = new RTCPeerConnection(rtcConfig);
@@ -193,6 +192,7 @@ export function collectPeerConnections({
                   userId: user.userId,
                   initiator: true,
                 });
+                await new Promise((resolve) => setTimeout(resolve, 1000));
                 makeOffer(user);
               }
             }
