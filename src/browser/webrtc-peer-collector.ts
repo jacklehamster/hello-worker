@@ -22,7 +22,7 @@ const DEFAULT_ENTER_ROOM = enterRoom;
 export function collectPeerConnections({
   appId,
   receivePeerConnection,
-  peerlessUserExpiration,
+  peerlessUserExpiration = 5000,
   rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] },
   enterRoomFunction: enterRoom = DEFAULT_ENTER_ROOM,
   logLine = console.debug,
@@ -83,7 +83,6 @@ export function collectPeerConnections({
         pendingRemoteIce: [],
         peers: new Map(),
       };
-      newState.peers.set(peer.peerId, peer);
       users.set(peer.userId, newState);
 
       setupPC(newState);
@@ -95,8 +94,8 @@ export function collectPeerConnections({
     } else if (state) {
       clearTimeout(state.expirationTimeout);
       state.expirationTimeout = 0;
-      state.peers.set(peer.peerId, peer);
     }
+    state.peers.set(peer.peerId, peer);
     return [state, isNewPeer];
   }
 
