@@ -42,7 +42,6 @@ export function collectPeerConnections({
     pc: RTCPeerConnection;
     userId: string;
     initiator: boolean;
-    onDisconnect?: () => void;
   }): void;
   onRoomReady?(info: { host: string; room: string }): void;
   onRoomClose?(info: {
@@ -176,24 +175,8 @@ export function collectPeerConnections({
           joiningUsers.forEach((user) => {
             const [state, isNewPeer] = getPeer(user);
             if (!isNewPeer) return;
-            function onDisconnect() {
-              //  retry
-              state.pc = new RTCPeerConnection(rtcConfig);
-              receivePeerConnection({
-                pc,
-                userId: user.userId,
-                initiator: true,
-                onDisconnect,
-              });
-              makeOffer(user);
-            }
             const pc = state.pc;
-            receivePeerConnection({
-              pc,
-              userId: user.userId,
-              initiator: true,
-              onDisconnect,
-            });
+            receivePeerConnection({ pc, userId: user.userId, initiator: true });
             makeOffer(user);
           });
         },
