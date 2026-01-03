@@ -183,6 +183,7 @@ export function collectPeerConnections({
             const pc = state.pc;
 
             function restart() {
+              console.log("Restarting");
               const state = users.get(user.userId);
               if (state) {
                 state.pc = new RTCPeerConnection(rtcConfig);
