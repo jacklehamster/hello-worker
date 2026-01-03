@@ -1,6 +1,5 @@
 export interface IPeer<T extends string = string, P = any> {
   userId: string;
-  // peerId: string;
   receive(type: T, payload: P): boolean;
 }
 
@@ -17,7 +16,7 @@ export function enterRoom<T extends string, P = any>(params: {
   onError?: () => void;
   logLine?: (direction: string, obj?: any) => void;
   onPeerJoined(users: IPeer<T, P>[]): void;
-  onPeerLeft(users: { userId: string; peerId: string }[]): void;
+  onPeerLeft(users: { userId: string }[]): void;
   onMessage(type: T, payload: P, from: IPeer<T, P>): void;
   autoRejoin?: boolean;
 }): { exitRoom: () => void } {
@@ -66,10 +65,9 @@ export function enterRoom<T extends string, P = any>(params: {
         logLine?.("🖥️ ➡️ 👤", msg);
         if (msg.type === "peer-joined" || msg.type === "peer-left") {
           updatePeers(msg.users);
-        } else if (msg.peerId && msg.userId) {
+        } else if (msg.userId) {
           params.onMessage(msg.type, msg.payload, {
             userId: msg.userId,
-            // peerId: msg.peerId,
             receive: (type: T, payload: P) => send(type, msg.userId, payload),
           });
         }
@@ -110,28 +108,28 @@ export function enterRoom<T extends string, P = any>(params: {
   }
 
   // Helper for peer tracking (logic from your original code)
-  function updatePeers(updatedUsers: { peerId: string; userId: string }[]) {
+  function updatePeers(updatedUsers: { userId: string }[]) {
     const joined: IPeer<T, P>[] = [];
-    const left: { userId: string; peerId: string }[] = [];
+    const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
 
-    updatedUsers.forEach(({ userId: pUserId, peerId }) => {
+    updatedUsers.forEach(({ userId: pUserId }) => {
       if (pUserId === userId) return;
-      if (!peers.has(peerId)) {
+      if (!peers.has(userId)) {
         const newPeer = {
           userId: pUserId,
           receive: (t: T, p: P) => send(t, pUserId, p),
         };
-        peers.set(peerId, newPeer);
+        peers.set(userId, newPeer);
         joined.push(newPeer);
       }
-      updatedPeerSet.add(peerId);
+      updatedPeerSet.add(userId);
     });
 
-    for (const [peerId, peer] of peers.entries()) {
-      if (!updatedPeerSet.has(peerId)) {
-        peers.delete(peerId);
-        left.push({ peerId, userId: peer.userId });
+    for (const userId of peers.keys()) {
+      if (!updatedPeerSet.has(userId)) {
+        peers.delete(userId);
+        left.push({ userId });
       }
     }
     //  Notify peer joined first then peer left. (avoid disconnect in case the peer leaving / joining is on the same user).
