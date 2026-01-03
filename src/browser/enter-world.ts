@@ -44,16 +44,17 @@ export function enterWorld({
   function createDataChannel(
     pc: RTCPeerConnection,
     peerUserId: string,
-    initiator: boolean
+    initiator: boolean,
+    restart?: () => void
   ) {
     if (initiator) {
       const dc = pc.createDataChannel("data", dataChannelOptions);
-      wireDataChannel(peerUserId, dc);
+      wireDataChannel(peerUserId, dc, restart);
       dataChannels.set(peerUserId, dc);
     } else {
       function listener(ev: RTCDataChannelEvent) {
         const dc = ev.channel;
-        wireDataChannel(peerUserId, dc);
+        wireDataChannel(peerUserId, dc, restart);
         dataChannels.set(peerUserId, dc);
         pc.ondatachannel = null;
       }
@@ -64,7 +65,11 @@ export function enterWorld({
     }
   }
 
-  function wireDataChannel(userId: string, dc: RTCDataChannel) {
+  function wireDataChannel(
+    userId: string,
+    dc: RTCDataChannel,
+    restart?: () => void
+  ) {
     dc.onopen = () => {
       logLine("💬", { event: "dc-open", userId });
       userIds.push(userId);
@@ -78,7 +83,7 @@ export function enterWorld({
       logLine("💬", { event: "dc-close", userId });
       userIds.splice(userIds.indexOf(userId), 1);
       userListeners.forEach((listener) => listener(userId, "leave", userIds));
-      restart(userId);
+      restart?.();
     });
     dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId });
   }
@@ -92,7 +97,6 @@ export function enterWorld({
     exitRoom,
     leaveUser,
     end: endPeerCollection,
-    restart,
   } = collectPeerConnections({
     appId,
     rtcConfig,
@@ -109,8 +113,8 @@ export function enterWorld({
       } catch {}
       dataChannels.delete(userId);
     },
-    receivePeerConnection({ pc, userId, initiator }) {
-      createDataChannel(pc, userId, initiator);
+    receivePeerConnection({ pc, userId, initiator, restart }) {
+      createDataChannel(pc, userId, initiator, restart);
     },
   });
 

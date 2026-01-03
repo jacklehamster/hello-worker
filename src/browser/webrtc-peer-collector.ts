@@ -42,6 +42,7 @@ export function collectPeerConnections({
     pc: RTCPeerConnection;
     userId: string;
     initiator: boolean;
+    restart?: () => void;
   }): void;
   onRoomReady?(info: { host: string; room: string }): void;
   onRoomClose?(info: {
@@ -180,7 +181,27 @@ export function collectPeerConnections({
             const [state, isNewPeer] = getPeer(user);
             if (!isNewPeer) return;
             const pc = state.pc;
-            receivePeerConnection({ pc, userId: user.userId, initiator: true });
+
+            function restart() {
+              const state = users.get(user.userId);
+              if (state) {
+                state.pc = new RTCPeerConnection(rtcConfig);
+                setupPC(state);
+                receivePeerConnection({
+                  pc: state.pc,
+                  userId: user.userId,
+                  initiator: true,
+                });
+                makeOffer(user);
+              }
+            }
+
+            receivePeerConnection({
+              pc,
+              userId: user.userId,
+              initiator: true,
+              restart,
+            });
             makeOffer(user);
           });
         },
@@ -266,13 +287,6 @@ export function collectPeerConnections({
       roomsEntered.clear();
       users.forEach(({ userId }) => leaveUser(userId));
       users.clear();
-    },
-    restart(userId: string) {
-      const state = users.get(userId);
-      if (state) {
-        state.pc = new RTCPeerConnection(rtcConfig);
-        setupPC(state);
-      }
     },
   };
 }
