@@ -27,7 +27,7 @@ export type WorkerCommand<T extends string = string, P = any> =
       autoRejoin: boolean;
     }
   | { cmd: "exit" }
-  | { cmd: "send"; toUserId: string; type: T; payload: P };
+  | { cmd: "send"; toPeerId: string; type: T; payload: P };
 
 let exitRoom: (() => void) | null = null;
 
@@ -68,19 +68,19 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       },
       onPeerJoined: (users: IPeer[]) => {
         // Save the ability to send to this peer
-        users.forEach(({ userId, receive }) => peerSend.set(userId, receive));
+        users.forEach(({ peerId, receive }) => peerSend.set(peerId, receive));
         emit({
           kind: "peer-joined",
           users: users.map(({ userId, peerId }) => ({ userId, peerId })),
         });
       },
       onPeerLeft: (users: { userId: string; peerId: string }[]) => {
-        users.forEach(({ userId }) => peerSend.delete(userId));
+        users.forEach(({ peerId }) => peerSend.delete(peerId));
         emit({ kind: "peer-left", users });
       },
       onMessage: (type: any, payload: any, from: IPeer) => {
         // We can also learn peerSend via onMessage in case join events vary
-        peerSend.set(from.userId, from.receive);
+        peerSend.set(from.peerId, from.receive);
         emit({
           kind: "message",
           type,
@@ -96,7 +96,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
   }
 
   if (msg.cmd === "send") {
-    const sendFn = peerSend.get(msg.toUserId);
+    const sendFn = peerSend.get(msg.toPeerId);
     if (sendFn) sendFn(msg.type, msg.payload);
     return;
   }

@@ -68,11 +68,10 @@ export function enterRoom<T extends string, P = any>({
       userId,
       peerId,
       receive: (type: T, payload: P) => {
-        console.log("SENDING TO WORKER", type, payload, exited);
         if (exited) return false;
         worker.postMessage({
           cmd: "send",
-          toUserId: userId,
+          toPeerId: peerId,
           type,
           payload,
         } as WorkerCommand);
