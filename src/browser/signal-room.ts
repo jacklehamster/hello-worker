@@ -65,8 +65,6 @@ export function enterRoom<T extends string, P = any>({
         worker.postMessage({
           cmd: "send",
           toUserId: userId,
-          host,
-          room,
           type,
           payload,
         } as WorkerCommand);
