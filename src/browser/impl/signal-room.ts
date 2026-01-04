@@ -103,7 +103,10 @@ export function enterRoom<T extends string, P = any>(params: {
       }
     };
 
-    ws.onerror = () => params.onError?.();
+    ws.onerror = (ev) => {
+      console.error("WS Error", ev);
+      params.onError?.();
+    };
   }
 
   // Helper for peer tracking (logic from your original code)
