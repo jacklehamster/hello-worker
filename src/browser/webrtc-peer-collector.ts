@@ -6,7 +6,7 @@ export type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
 
 type UserState = {
   userId: string;
-  pc: RTCPeerConnection;
+  pc?: RTCPeerConnection;
 
   // ICE that arrived before we had remoteDescription
   pendingRemoteIce: RTCIceCandidateInit[];
@@ -55,6 +55,7 @@ export function collectPeerConnections({
   const users: Map<string, UserState> = new Map();
 
   function setupPC(state: UserState) {
+    state.pc = new RTCPeerConnection(rtcConfig);
     // Send local ICE candidates to this peer
     state.pc.onicecandidate = (ev) => {
       if (!ev.candidate) return;
@@ -65,9 +66,10 @@ export function collectPeerConnections({
       logLine("💬", {
         event: "pc-state",
         userId: state.userId,
-        state: state.pc.connectionState,
+        state: state.pc?.connectionState,
       });
     };
+    return state.pc;
   }
 
   function getPeer(peer: IPeer<SigType, SigPayload>): [UserState, boolean] {
@@ -76,7 +78,6 @@ export function collectPeerConnections({
     if (!state) {
       const newState: UserState = {
         userId: peer.userId,
-        pc: new RTCPeerConnection(rtcConfig),
         pendingRemoteIce: [],
         peer,
       };
@@ -92,6 +93,9 @@ export function collectPeerConnections({
       clearTimeout(state.expirationTimeout);
       state.expirationTimeout = 0;
     }
+    if (!state.pc) {
+      setupPC(state);
+    }
     state.peer = peer;
     return [state, isNewPeer];
   }
@@ -101,13 +105,13 @@ export function collectPeerConnections({
     const p = users.get(userId);
     if (!p) return;
     try {
-      p.pc.close();
+      p.pc?.close();
     } catch {}
     users.delete(userId);
   }
 
   async function flushRemoteIce(state: UserState) {
-    if (!state.pc.remoteDescription) return;
+    if (!state.pc?.remoteDescription) return;
 
     const queued = state.pendingRemoteIce;
     state.pendingRemoteIce = [];
@@ -145,10 +149,10 @@ export function collectPeerConnections({
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
         const [state] = getPeer(user);
         const pc = state.pc;
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        user.receive("offer", pc.localDescription?.toJSON()!);
-        console.log("Make offer", pc.localDescription?.toJSON());
+        const offer = await pc?.createOffer();
+        await pc?.setLocalDescription(offer);
+        user.receive("offer", pc?.localDescription?.toJSON()!);
+        console.log("Make offer", pc?.localDescription?.toJSON());
       }
 
       const { exitRoom } = enterRoom({
@@ -179,14 +183,15 @@ export function collectPeerConnections({
             const [state, isNewPeer] = getPeer(user);
             if (!isNewPeer) return;
             const pc = state.pc;
+            if (!pc) return;
 
             async function restart() {
               const state = users.get(user.userId);
               if (state) {
-                state.pc = new RTCPeerConnection(rtcConfig);
-                setupPC(state);
+                state.pc = undefined;
+                const pc = setupPC(state);
                 receivePeerConnection({
-                  pc: state.pc,
+                  pc,
                   userId: user.userId,
                   initiator: true,
                   restart,
@@ -220,17 +225,16 @@ export function collectPeerConnections({
         async onMessage(type: SigType, payload: any, from: IPeer) {
           const [state] = getPeer(from);
           const pc = state.pc;
+          if (!pc) return;
 
           if (type === "offer") {
-            console.log("got offer", from, payload);
             receivePeerConnection({
               pc,
               userId: from.userId,
               initiator: false,
               restart() {
                 //  reset PC
-                state.pc = new RTCPeerConnection(rtcConfig);
-                setupPC(state);
+                state.pc = undefined;
               },
             });
             // Responder: set remote offer
