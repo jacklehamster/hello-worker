@@ -152,7 +152,6 @@ export function collectPeerConnections({
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
         user.receive("offer", pc?.localDescription?.toJSON()!);
-        console.log("Make offer", pc?.localDescription?.toJSON());
       }
 
       const { exitRoom } = enterRoom({
@@ -178,7 +177,6 @@ export function collectPeerConnections({
 
         // Existing peers initiate to the newcomer (Option 1)
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
-          console.log("PEER JOINED", joiningUsers);
           joiningUsers.forEach((user) => {
             const [state, isNewPeer] = getPeer(user);
             if (!isNewPeer) return;

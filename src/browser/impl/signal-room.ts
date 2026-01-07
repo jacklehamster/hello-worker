@@ -35,7 +35,6 @@ export function enterRoom<T extends string, P = any>(params: {
 
   // Helper for sending (uses the current ws instance)
   function send(type: T, to: string, payload: P) {
-    console.log("SENDING", type, to, payload, ws.readyState, ws);
     if (!ws) return false;
     if (exited || ws.readyState !== WebSocket.OPEN) return false;
     const obj = { type, to, payload };
