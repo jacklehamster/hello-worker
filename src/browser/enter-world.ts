@@ -11,9 +11,7 @@ type UserListener = (
   users: string[]
 ) => void;
 
-export function enterWorld<
-  D extends string | ArrayBufferView<ArrayBuffer> | ArrayBuffer
->({
+export function enterWorld<D extends string | Uint8Array>({
   appId,
   logLine = console.debug,
   enterRoomFunction = enterRoom,
@@ -126,13 +124,7 @@ export function enterWorld<
     dataChannels.forEach((dataChannel, pUserId) => {
       if (userId && pUserId !== userId) return;
       if (dataChannel.readyState === "open") {
-        if (typeof data === "string") {
-          dataChannel.send(data);
-        } else if (data instanceof ArrayBuffer) {
-          dataChannel.send(data);
-        } else {
-          dataChannel.send(data);
-        }
+        dataChannel.send(data as any);
       }
     });
   }
