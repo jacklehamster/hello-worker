@@ -11,7 +11,7 @@ type UserListener = (
   users: string[]
 ) => void;
 
-export function enterWorld({
+export function enterWorld<D extends Parameters<RTCDataChannel["send"]>[0]>({
   appId,
   logLine = console.debug,
   enterRoomFunction = enterRoom,
@@ -120,18 +120,18 @@ export function enterWorld({
     },
   });
 
-  function send(data: any, userId?: string) {
+  function send(data: D, userId?: string) {
     dataChannels.forEach((dataChannel, pUserId) => {
       if (userId && pUserId !== userId) return;
       if (dataChannel.readyState === "open") dataChannel.send(data);
     });
   }
 
-  function removeMessageListener(listener: (data: any, from: string) => void) {
+  function removeMessageListener(listener: (data: D, from: string) => void) {
     messagesListeners.delete(listener);
   }
 
-  function addMessageListener(listener: (data: any, from: string) => void) {
+  function addMessageListener(listener: (data: D, from: string) => void) {
     messagesListeners.add(listener);
     return () => {
       removeMessageListener(listener);
