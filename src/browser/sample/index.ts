@@ -9,59 +9,64 @@ const logEl = document.getElementById("log")!;
 const welcomeEl = document.getElementById("welcome") as HTMLInputElement;
 
 function ts() {
-    // HH:MM:SS.mmm (local time)
-    const d = new Date();
-    const p2 = (n: number) => String(n).padStart(2, "0");
-    const p3 = (n: number) => String(n).padStart(3, "0");
-    return `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}.${p3(d.getMilliseconds())}`;
+  // HH:MM:SS.mmm (local time)
+  const d = new Date();
+  const p2 = (n: number) => String(n).padStart(2, "0");
+  const p3 = (n: number) => String(n).padStart(3, "0");
+  return `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}.${p3(
+    d.getMilliseconds()
+  )}`;
 }
 
 function logLine(direction: string, obj?: any) {
-    logEl.textContent += ts() + "  " + direction + "  " + (obj ? JSON.stringify(obj) : "") + "\n";
-    logEl.scrollTop = logEl.scrollHeight;
+  logEl.textContent +=
+    ts() + "  " + direction + "  " + (obj ? JSON.stringify(obj) : "") + "\n";
+  logEl.scrollTop = logEl.scrollHeight;
 }
 
 export function clearLog() {
-    logEl.textContent = "";
+  logEl.textContent = "";
 }
 
 export function testWelcome() {
-    const { exitRoom } = enterRoom({
-        userId: crypto.randomUUID(),
-        appId: "signal-test",
-        room: "test",
-        host: location.host,
-        autoRejoin: true,
-        onOpen: () => {
-            statusEl.textContent = "🟢 connected";
-            logLine("🔗  CONNECTED");
-        },
-        onClose: (event) => {
-            statusEl.textContent = "🔴 closed";
-            logLine("⛓️‍💥  DISCONNECTED", event);
-        },
-        onError: () => {
-            statusEl.textContent = "🔴 error";
-            logLine("⚠️ ERROR");
-        },
-        onPeerJoined: (users) => {
-            users.forEach(user => user.receive("welcome", { note: welcomeEl.value }));
-        },
-        onPeerLeft: (info) => {
-            logLine("👤 LEFT", info);
-        },
-        onMessage: (type, payload, user) => {
-            if (type === "welcome") {
-                user.receive("thanks", { note: "Thank you! 🙏" });
-            }
-        },
-        logLine,
-        workerUrl: new URL("../signal-room.worker.js", import.meta.url),
-    });
-    return () => {
-        statusEl.textContent = "🔴 closed";
-        exitRoom();
-    };
+  const { exitRoom } = enterRoom({
+    userId: crypto.randomUUID(),
+    appId: "signal-test",
+    room: "test",
+    host: location.host,
+    autoRejoin: true,
+    onOpen: () => {
+      statusEl.textContent = "🟢 connected";
+      logLine("🔗  CONNECTED");
+    },
+    onClose: (event) => {
+      statusEl.textContent = "🔴 closed";
+      logLine("⛓️‍💥  DISCONNECTED", event);
+    },
+    onError: () => {
+      statusEl.textContent = "🔴 error";
+      logLine("⚠️ ERROR");
+    },
+    onPeerJoined: (users) => {
+      users.forEach((user) =>
+        user.receive("welcome", { note: welcomeEl.value })
+      );
+    },
+    onPeerLeft: (info) => {
+      logLine("👤 LEFT", info);
+    },
+    onMessage: (type, payload, user) => {
+      if (type === "welcome") {
+        user.receive("thanks", { note: "Thank you! 🙏" });
+      }
+    },
+    logLine,
+    workerUrl: new URL("../signal-room.worker.js", import.meta.url),
+  });
+  return () => {
+    statusEl.textContent = "🔴 closed";
+    exitRoom();
+  };
 }
 
 export function testWebRTC() {
@@ -85,7 +90,6 @@ export function testWebRTC() {
       ordered: false,
     },
   });
-
 
   // --- create a stage + emoji (if not already in HTML) ---
   let stageEl = document.getElementById("stage") as HTMLDivElement | null;
@@ -128,13 +132,15 @@ export function testWebRTC() {
     stageEl.appendChild(usersEl);
   }
 
-  session.enterRoom({
-    room: "test",
-    host: location.host,
-  }).then(() => {
-    statusEl.textContent = "🟢 connected";
-  });
-  session.addMessageListener(data => {
+  session
+    .enterRoom({
+      room: "test",
+      host: location.host,
+    })
+    .then(() => {
+      statusEl.textContent = "🟢 connected";
+    });
+  session.addMessageListener((data) => {
     try {
       const { x, y } = JSON.parse(String(data));
       if (typeof x === "number" && typeof y === "number") {

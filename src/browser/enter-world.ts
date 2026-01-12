@@ -11,7 +11,7 @@ type UserListener = (
   users: string[]
 ) => void;
 
-export function enterWorld<D extends Parameters<RTCDataChannel["send"]>[0]>({
+export function enterWorld<D extends string | ArrayBufferView<ArrayBuffer>>({
   appId,
   logLine = console.debug,
   enterRoomFunction = enterRoom,
@@ -123,7 +123,13 @@ export function enterWorld<D extends Parameters<RTCDataChannel["send"]>[0]>({
   function send(data: D, userId?: string) {
     dataChannels.forEach((dataChannel, pUserId) => {
       if (userId && pUserId !== userId) return;
-      if (dataChannel.readyState === "open") dataChannel.send(data);
+      if (dataChannel.readyState === "open") {
+        if (typeof data === "string") {
+          dataChannel.send(data);
+        } else {
+          dataChannel.send(data);
+        }
+      }
     });
   }
 
