@@ -56,19 +56,19 @@ export function collectPeerConnections({
   const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
 
-  async function getRtcConfig(): Promise<RTCConfiguration> {
+  async function getRtcConfig(host: string): Promise<RTCConfiguration> {
     try {
-      const r = await fetch("/api/ice");
+      const r = await fetch(`${host}/api/ice`);
       if (!r.ok) throw new Error(`ICE endpoint failed: ${r.status}`);
       return await r.json();
     } catch (e) {
       console.warn("Using fallback rtcConfig:", e);
-      return fallbackRtcConfig;
     }
+    return fallbackRtcConfig;
   }
 
-  async function setupPC(state: UserState) {
-    state.pc = new RTCPeerConnection(await getRtcConfig());
+  async function setupPC(state: UserState, host: string) {
+    state.pc = new RTCPeerConnection(await getRtcConfig(host));
     // Send local ICE candidates to this peer
     state.pc.onicecandidate = (ev) => {
       if (!ev.candidate) return;
@@ -86,7 +86,8 @@ export function collectPeerConnections({
   }
 
   async function getPeer(
-    peer: IPeer<SigType, SigPayload>
+    peer: IPeer<SigType, SigPayload>,
+    host: string
   ): Promise<[UserState, boolean]> {
     let state = users.get(peer.userId);
     let isNewPeer = false;
@@ -98,7 +99,7 @@ export function collectPeerConnections({
       };
       users.set(peer.userId, newState);
 
-      await setupPC(newState);
+      await setupPC(newState, host);
       state = newState;
 
       //  New user
@@ -109,7 +110,7 @@ export function collectPeerConnections({
       state.expirationTimeout = 0;
     }
     if (!state.pc) {
-      await setupPC(state);
+      await setupPC(state, host);
     }
     state.peer = peer;
     return [state, isNewPeer];
@@ -162,7 +163,7 @@ export function collectPeerConnections({
     return new Promise<void>(async (resolve, reject) => {
       async function makeOffer(user: IPeer) {
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
-        const [state] = await getPeer(user);
+        const [state] = await getPeer(user, host);
         const pc = state.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
@@ -190,10 +191,10 @@ export function collectPeerConnections({
           onRoomClose?.({ room, host, ev });
         },
 
-        // Existing peers initiate to the newcomer (Option 1)
+        // Existing peers initiate to the newcomer
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
           joiningUsers.forEach(async (user) => {
-            const [state, isNewPeer] = await getPeer(user);
+            const [state, isNewPeer] = await getPeer(user, host);
             if (!isNewPeer) return;
             const pc = state.pc;
             if (!pc) return;
@@ -202,7 +203,7 @@ export function collectPeerConnections({
               const state = users.get(user.userId);
               if (state) {
                 state.pc = undefined;
-                const pc = await setupPC(state);
+                const pc = await setupPC(state, host);
                 receivePeerConnection({
                   pc,
                   userId: user.userId,
@@ -236,7 +237,7 @@ export function collectPeerConnections({
         },
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
-          const [state] = await getPeer(from);
+          const [state] = await getPeer(from, host);
           const pc = state.pc;
           if (!pc) return;
 
