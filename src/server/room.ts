@@ -61,30 +61,38 @@ export class Room implements DurableObject {
       `Room ${this.state.id.toString()} (${appId}/${roomId}) got new peer: (userId=${userId})`
     );
 
+    //  Provide ice token
+    const iceToken = await this.getIceToken(appId, roomId, userId);
+
     // Notify existing peers about the newcomer
     const sockets = this.state.getWebSockets();
     for (const ws of this.state.getWebSockets()) {
-      //  Provide ice token
-      const iceToken = await this.getIceToken(appId, roomId, userId);
-      ws.send(
-        JSON.stringify({
-          type: "ice-server",
-          url: `https://${host}/api/ice?token=${iceToken.token}`,
-        })
-      );
-
-      if (ws === server) continue; //  don't anounce peer joined to self
-      try {
+      if (ws === server) {
         ws.send(
           JSON.stringify({
-            type: "peer-joined",
-            userId,
-            users: this.getAttachments(sockets).map(({ userId }) => ({
-              userId,
-            })),
+            type: "ice-server",
+            url: `https://${host}/api/ice?token=${iceToken.token}`,
           })
         );
-      } catch {}
+      } else {
+        try {
+          ws.send(
+            JSON.stringify([
+              {
+                type: "ice-server",
+                url: `https://${host}/api/ice?token=${iceToken.token}`,
+              },
+              {
+                type: "peer-joined",
+                userId,
+                users: this.getAttachments(sockets).map(({ userId }) => ({
+                  userId,
+                })),
+              },
+            ])
+          );
+        } catch {}
+      }
     }
     return new Response(null, { status: 101, webSocket: client });
   }

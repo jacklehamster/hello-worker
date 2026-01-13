@@ -67,18 +67,21 @@ export function enterRoom<T extends string, P = any>(params: {
 
     ws.onmessage = (e: MessageEvent) => {
       try {
-        const msg = JSON.parse(e.data) as Message;
-        logLine?.("🖥️ ➡️ 👤", msg);
-        if (msg.type === "peer-joined" || msg.type === "peer-left") {
-          updatePeers(msg.users);
-        } else if (msg.type === "ice-server") {
-          params.onIceUrl?.(msg.url);
-        } else if (msg.userId) {
-          params.onMessage(msg.type, msg.payload, {
-            userId: msg.userId,
-            receive: (type: T, payload: P) => send(type, msg.userId, payload),
-          });
-        }
+        const result = JSON.parse(e.data);
+        const msgs: Message[] = Array.isArray(result) ? result : [result];
+        msgs.forEach((msg) => {
+          logLine?.("🖥️ ➡️ 👤", msg);
+          if (msg.type === "peer-joined" || msg.type === "peer-left") {
+            updatePeers(msg.users);
+          } else if (msg.type === "ice-server") {
+            params.onIceUrl?.(msg.url);
+          } else if (msg.userId) {
+            params.onMessage(msg.type, msg.payload, {
+              userId: msg.userId,
+              receive: (type: T, payload: P) => send(type, msg.userId, payload),
+            });
+          }
+        });
       } catch {
         logLine?.("⚠️ ERROR", { error: "invalid-json" });
       }
