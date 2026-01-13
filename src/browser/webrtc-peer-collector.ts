@@ -58,7 +58,7 @@ export function collectPeerConnections({
 
   async function getRtcConfig(host: string): Promise<RTCConfiguration> {
     try {
-      const r = await fetch(`${host}/api/ice`);
+      const r = await fetch(`https://${host}/api/ice`);
       if (!r.ok) throw new Error(`ICE endpoint failed: ${r.status}`);
       return await r.json();
     } catch (e) {
