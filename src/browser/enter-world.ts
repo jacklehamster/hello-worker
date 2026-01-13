@@ -53,7 +53,6 @@ export function enterWorld<D extends string | Uint8Array>({
         const dc = ev.channel;
         wireDataChannel(peerUserId, dc, restart);
         dataChannels.set(peerUserId, dc);
-        pc.ondatachannel = null;
       }
       pc.addEventListener("datachannel", listener);
       return () => {
