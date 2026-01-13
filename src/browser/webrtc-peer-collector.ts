@@ -67,10 +67,8 @@ export function collectPeerConnections({
     }
   }
 
-  const rtcConfigPromise = getRtcConfig();
-
   async function setupPC(state: UserState) {
-    state.pc = new RTCPeerConnection(await rtcConfigPromise);
+    state.pc = new RTCPeerConnection(await getRtcConfig());
     // Send local ICE candidates to this peer
     state.pc.onicecandidate = (ev) => {
       if (!ev.candidate) return;
