@@ -77,6 +77,7 @@ export function collectPeerConnections({
   }
 
   async function setupPC(state: UserState) {
+    console.log(rtcConfigExpiration - Date.now(), "<<");
     state.pc = new RTCPeerConnection(
       rtcConfigExpiration - Date.now() < 10000
         ? await getRtcConfig()
