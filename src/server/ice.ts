@@ -61,9 +61,15 @@ export class IceServer {
       // Cloudflare returns { iceServers: [...] }
       const json = await r.json();
       return this.withCors(
-        new Response(JSON.stringify(json), {
-          headers: { "Content-Type": "application/json" },
-        })
+        new Response(
+          JSON.stringify({
+            ...json,
+            ...result,
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        )
       );
     }
     return undefined;
