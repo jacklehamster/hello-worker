@@ -4,6 +4,9 @@ import {
   DurableObjectState,
   Request,
 } from "@cloudflare/workers-types";
+import { mintIceToken } from "./utils/iceToken";
+import { Env } from "./env";
+import { extractPathInfo } from "./utils/url-utils";
 
 type AnyJson =
   | null
@@ -24,12 +27,25 @@ function getAttachment(ws: WebSocket): Attachment | null {
 }
 
 export class Room implements DurableObject {
-  constructor(private state: DurableObjectState, private env: unknown) {
-    void env;
+  constructor(private state: DurableObjectState, private env: Env) {}
+
+  async getIceToken(appId: string, roomId: string, userId: string) {
+    return await mintIceToken({
+      secret: this.env.ICE_AUTH_SECRET,
+      appId,
+      roomId,
+      userId,
+      ttlMs: 30_000, //  30s
+    });
   }
 
   async fetch(req: Request): Promise<Response> {
-    const userId = new URL(req.url).searchParams.get("userId");
+    const { appId, roomId, userId } = extractPathInfo(req);
+    console.debug(">>>", req.url);
+
+    if (!appId || !roomId) {
+      return new Response("Missing appId or roomId", { status: 400 });
+    }
     if (!userId) {
       return new Response("Missing userId", { status: 400 });
     }
@@ -44,8 +60,10 @@ export class Room implements DurableObject {
     server.serializeAttachment({ userId } satisfies Attachment);
 
     console.debug(
-      `Room ${this.state.id.toString()} got new peer: (userId=${userId})`
+      `Room ${this.state.id.toString()} (${appId}/${roomId}) got new peer: (userId=${userId})`
     );
+
+    const iceToken = await this.getIceToken(appId, roomId, userId);
 
     // Notify existing peers about the newcomer
     const sockets = this.state.getWebSockets();
@@ -59,6 +77,7 @@ export class Room implements DurableObject {
             users: this.getAttachments(sockets).map(({ userId }) => ({
               userId,
             })),
+            iceToken: iceToken.token,
           })
         );
       } catch {}

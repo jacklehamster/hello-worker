@@ -20,6 +20,14 @@ export function enterRoom<T extends string, P = any>(params: {
   onMessage(type: T, payload: P, from: IPeer<T, P>): void;
   autoRejoin?: boolean;
 }): { exitRoom: () => void } {
+  type Message = {
+    type: "peer-joined" | "peer-left" | T;
+    userId: string;
+    users: { userId: string }[];
+    payload: P;
+    iceToken?: string;
+  };
+
   const { userId, appId, room, host, autoRejoin = true, logLine } = params;
 
   let exited = false;
@@ -57,9 +65,8 @@ export function enterRoom<T extends string, P = any>(params: {
     };
 
     ws.onmessage = (e: MessageEvent) => {
-      // ... (keep your existing JSON parsing and updatePeers logic here)
       try {
-        const msg = JSON.parse(e.data);
+        const msg = JSON.parse(e.data) as Message;
         logLine?.("🖥️ ➡️ 👤", msg);
         if (msg.type === "peer-joined" || msg.type === "peer-left") {
           updatePeers(msg.users);

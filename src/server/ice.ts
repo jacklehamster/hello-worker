@@ -1,5 +1,5 @@
-import { Env } from "..";
 import { Request } from "@cloudflare/workers-types";
+import { Env } from "./env";
 
 export class IceServer {
   corsAnyOrigin() {
