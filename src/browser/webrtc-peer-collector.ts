@@ -56,19 +56,16 @@ export function collectPeerConnections({
   const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
   let iceUrl: string | undefined = undefined;
-  let rtcConfig: RTCConfiguration | undefined;
-  let rtcConfigExpiration: number = 0;
+  let rtcConfig: (RTCConfiguration & { timestamp: number }) | undefined;
 
   async function getRtcConfig(): Promise<RTCConfiguration> {
     if (iceUrl) {
       try {
         const r = await fetch(iceUrl);
         if (!r.ok) throw new Error(`ICE endpoint failed: ${r.status}`);
-        const result = (await r.json()) as RTCConfiguration & {
-          expire: number;
+        rtcConfig = (await r.json()) as RTCConfiguration & {
+          timestamp: number;
         };
-        rtcConfigExpiration = Date.now() + result.expire * 1000;
-        rtcConfig = result;
       } catch (e) {
         console.warn("Using fallback rtcConfig:", e);
       }
@@ -77,11 +74,10 @@ export function collectPeerConnections({
   }
 
   async function setupPC(state: UserState) {
-    console.log(rtcConfigExpiration - Date.now(), "<<");
     state.pc = new RTCPeerConnection(
-      rtcConfigExpiration - Date.now() < 10000
-        ? await getRtcConfig()
-        : rtcConfig
+      Date.now() - (rtcConfig?.timestamp ?? 0) < 10000
+        ? rtcConfig
+        : await getRtcConfig()
     );
     // Send local ICE candidates to this peer
     state.pc.onicecandidate = (ev) => {

@@ -64,7 +64,7 @@ export class IceServer {
         new Response(
           JSON.stringify({
             ...json,
-            expire: (result.expiration - Date.now()) / 1000,
+            timestamp: Date.now(),
           }),
           {
             headers: { "Content-Type": "application/json" },
