@@ -29,3 +29,6 @@ invocation_logs = true
 enabled = false
 persist = true
 head_sampling_rate = 1
+
+[vars]
+CF_TURN_TOKEN_ID = "1576fe312b5ecdaff5b2a66896bea40e"

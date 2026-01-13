@@ -35,9 +35,6 @@ export function enterWorld<D extends string | Uint8Array>({
   dataChannelOptions?: RTCDataChannelInit;
 }) {
   const userIds: string[] = [];
-  const rtcConfig: RTCConfiguration = {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-  };
 
   const messagesListeners = new Set<(data: any, from: string) => void>();
 
@@ -101,7 +98,6 @@ export function enterWorld<D extends string | Uint8Array>({
     end: endPeerCollection,
   } = collectPeerConnections({
     appId,
-    rtcConfig,
     enterRoomFunction,
     logLine,
     workerUrl,

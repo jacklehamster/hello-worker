@@ -1,8 +1,14 @@
-import { Fetcher, DurableObjectNamespace, Request } from "@cloudflare/workers-types";
+import {
+  Fetcher,
+  DurableObjectNamespace,
+  Request,
+} from "@cloudflare/workers-types";
 
 export interface Env {
   ROOM: DurableObjectNamespace;
   ASSETS: Fetcher;
+  CF_TURN_TOKEN_ID: string;
+  CF_RTC_API_TOKEN: string;
 }
 
 export { Room } from "./room";
@@ -10,6 +16,34 @@ export { Room } from "./room";
 export default {
   async fetch(req: Request, env: Env) {
     const url = new URL(req.url);
+
+    // 1) Return ICE servers for WebRTC (TURN/STUN)
+    if (url.pathname === "/api/ice") {
+      // optional: only allow same-origin
+      // optional: require auth cookie / token, etc.
+
+      const r = await fetch(
+        `https://rtc.live.cloudflare.com/v1/turn/keys/${env.CF_TURN_TOKEN_ID}/credentials/generate-ice-servers`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${env.CF_RTC_API_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ttl: 3600 }), // 1 hour is typical
+        }
+      );
+
+      if (!r.ok) {
+        return new Response("Failed to get ICE servers", { status: 502 });
+      }
+
+      // Cloudflare returns { iceServers: [...] }
+      const json = await r.json();
+      return new Response(JSON.stringify(json), {
+        headers: { "content-type": "application/json" },
+      });
+    }
 
     // If NOT /room/<appId/<roomId>, serve test HTML
     const match = url.pathname.match(/^\/room\/([^/]+)\/([^/]+)$/);

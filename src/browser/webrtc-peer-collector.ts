@@ -23,7 +23,9 @@ export function collectPeerConnections({
   appId,
   receivePeerConnection,
   peerlessUserExpiration = 5000,
-  rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] },
+  fallbackRtcConfig = {
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  },
   enterRoomFunction: enterRoom = DEFAULT_ENTER_ROOM,
   logLine = console.debug,
   onLeaveUser,
@@ -32,7 +34,7 @@ export function collectPeerConnections({
   onRoomClose,
 }: {
   appId: string;
-  rtcConfig?: RTCConfiguration;
+  fallbackRtcConfig?: RTCConfiguration;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
   onLeaveUser?: (userId: string) => void;
   logLine?: (direction: string, obj?: any) => void;
@@ -54,8 +56,21 @@ export function collectPeerConnections({
   const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
 
-  function setupPC(state: UserState) {
-    state.pc = new RTCPeerConnection(rtcConfig);
+  async function getRtcConfig(): Promise<RTCConfiguration> {
+    try {
+      const r = await fetch("/api/ice");
+      if (!r.ok) throw new Error(`ICE endpoint failed: ${r.status}`);
+      return await r.json();
+    } catch (e) {
+      console.warn("Using fallback rtcConfig:", e);
+      return fallbackRtcConfig;
+    }
+  }
+
+  const rtcConfigPromise = getRtcConfig();
+
+  async function setupPC(state: UserState) {
+    state.pc = new RTCPeerConnection(await rtcConfigPromise);
     // Send local ICE candidates to this peer
     state.pc.onicecandidate = (ev) => {
       if (!ev.candidate) return;
@@ -72,7 +87,9 @@ export function collectPeerConnections({
     return state.pc;
   }
 
-  function getPeer(peer: IPeer<SigType, SigPayload>): [UserState, boolean] {
+  async function getPeer(
+    peer: IPeer<SigType, SigPayload>
+  ): Promise<[UserState, boolean]> {
     let state = users.get(peer.userId);
     let isNewPeer = false;
     if (!state) {
@@ -83,7 +100,7 @@ export function collectPeerConnections({
       };
       users.set(peer.userId, newState);
 
-      setupPC(newState);
+      await setupPC(newState);
       state = newState;
 
       //  New user
@@ -94,7 +111,7 @@ export function collectPeerConnections({
       state.expirationTimeout = 0;
     }
     if (!state.pc) {
-      setupPC(state);
+      await setupPC(state);
     }
     state.peer = peer;
     return [state, isNewPeer];
@@ -144,10 +161,10 @@ export function collectPeerConnections({
   }
 
   function enter({ room, host }: { room: string; host: string }) {
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<void>(async (resolve, reject) => {
       async function makeOffer(user: IPeer) {
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
-        const [state] = getPeer(user);
+        const [state] = await getPeer(user);
         const pc = state.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
@@ -177,8 +194,8 @@ export function collectPeerConnections({
 
         // Existing peers initiate to the newcomer (Option 1)
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
-          joiningUsers.forEach((user) => {
-            const [state, isNewPeer] = getPeer(user);
+          joiningUsers.forEach(async (user) => {
+            const [state, isNewPeer] = await getPeer(user);
             if (!isNewPeer) return;
             const pc = state.pc;
             if (!pc) return;
@@ -187,7 +204,7 @@ export function collectPeerConnections({
               const state = users.get(user.userId);
               if (state) {
                 state.pc = undefined;
-                const pc = setupPC(state);
+                const pc = await setupPC(state);
                 receivePeerConnection({
                   pc,
                   userId: user.userId,
@@ -221,7 +238,7 @@ export function collectPeerConnections({
         },
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
-          const [state] = getPeer(from);
+          const [state] = await getPeer(from);
           const pc = state.pc;
           if (!pc) return;
 
@@ -295,3 +312,34 @@ export function collectPeerConnections({
     },
   };
 }
+
+/*
+Turn Token ID
+<CF_TURN_TOKEN_ID>
+
+API Token
+<CF_RTC_API_TOKEN>
+
+CURL
+curl \
+	-H "Authorization: Bearer <CF_RTC_API_TOKEN>" \
+	-H "Content-Type: application/json" -d '{"ttl": 86400}' \
+	https://rtc.live.cloudflare.com/v1/turn/keys/<CF_TURN_TOKEN_ID>/credentials/generate-ice-servers
+
+JSON
+{
+	"iceServers": [
+    {
+      "urls": [
+        "stun:stun.cloudflare.com:3478",
+        "turn:turn.cloudflare.com:3478?transport=udp",
+        "turn:turn.cloudflare.com:3478?transport=tcp",
+        "turns:turn.cloudflare.com:5349?transport=tcp"
+      ],
+      "username": "xxxx",
+      "credential": "yyyy",
+    }
+  ]
+}
+
+*/
