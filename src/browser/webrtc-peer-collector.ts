@@ -55,20 +55,23 @@ export function collectPeerConnections({
 }) {
   const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
+  let iceUrl: string | undefined = undefined;
 
-  async function getRtcConfig(host: string): Promise<RTCConfiguration> {
-    try {
-      const r = await fetch(`https://${host}/api/ice`);
-      if (!r.ok) throw new Error(`ICE endpoint failed: ${r.status}`);
-      return await r.json();
-    } catch (e) {
-      console.warn("Using fallback rtcConfig:", e);
+  async function getRtcConfig(): Promise<RTCConfiguration> {
+    if (iceUrl) {
+      try {
+        const r = await fetch(iceUrl);
+        if (!r.ok) throw new Error(`ICE endpoint failed: ${r.status}`);
+        return await r.json();
+      } catch (e) {
+        console.warn("Using fallback rtcConfig:", e);
+      }
     }
     return fallbackRtcConfig;
   }
 
-  async function setupPC(state: UserState, host: string) {
-    state.pc = new RTCPeerConnection(await getRtcConfig(host));
+  async function setupPC(state: UserState) {
+    state.pc = new RTCPeerConnection(await getRtcConfig());
     // Send local ICE candidates to this peer
     state.pc.onicecandidate = (ev) => {
       if (!ev.candidate) return;
@@ -86,8 +89,7 @@ export function collectPeerConnections({
   }
 
   async function getPeer(
-    peer: IPeer<SigType, SigPayload>,
-    host: string
+    peer: IPeer<SigType, SigPayload>
   ): Promise<[UserState, boolean]> {
     let state = users.get(peer.userId);
     let isNewPeer = false;
@@ -99,7 +101,7 @@ export function collectPeerConnections({
       };
       users.set(peer.userId, newState);
 
-      await setupPC(newState, host);
+      await setupPC(newState);
       state = newState;
 
       //  New user
@@ -110,7 +112,7 @@ export function collectPeerConnections({
       state.expirationTimeout = 0;
     }
     if (!state.pc) {
-      await setupPC(state, host);
+      await setupPC(state);
     }
     state.peer = peer;
     return [state, isNewPeer];
@@ -163,7 +165,7 @@ export function collectPeerConnections({
     return new Promise<void>(async (resolve, reject) => {
       async function makeOffer(user: IPeer) {
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
-        const [state] = await getPeer(user, host);
+        const [state] = await getPeer(user);
         const pc = state.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
@@ -194,7 +196,7 @@ export function collectPeerConnections({
         // Existing peers initiate to the newcomer
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
           joiningUsers.forEach(async (user) => {
-            const [state, isNewPeer] = await getPeer(user, host);
+            const [state, isNewPeer] = await getPeer(user);
             if (!isNewPeer) return;
             const pc = state.pc;
             if (!pc) return;
@@ -203,7 +205,7 @@ export function collectPeerConnections({
               const state = users.get(user.userId);
               if (state) {
                 state.pc = undefined;
-                const pc = await setupPC(state, host);
+                const pc = await setupPC(state);
                 receivePeerConnection({
                   pc,
                   userId: user.userId,
@@ -236,8 +238,12 @@ export function collectPeerConnections({
           });
         },
 
+        onIceUrl(url) {
+          iceUrl = url;
+        },
+
         async onMessage(type: SigType, payload: any, from: IPeer) {
-          const [state] = await getPeer(from, host);
+          const [state] = await getPeer(from);
           const pc = state.pc;
           if (!pc) return;
 

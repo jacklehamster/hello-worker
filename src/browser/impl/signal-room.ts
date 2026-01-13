@@ -17,15 +17,16 @@ export function enterRoom<T extends string, P = any>(params: {
   logLine?: (direction: string, obj?: any) => void;
   onPeerJoined(users: IPeer<T, P>[]): void;
   onPeerLeft(users: { userId: string }[]): void;
+  onIceUrl(url: string): void;
   onMessage(type: T, payload: P, from: IPeer<T, P>): void;
   autoRejoin?: boolean;
 }): { exitRoom: () => void } {
   type Message = {
-    type: "peer-joined" | "peer-left" | T;
+    type: "peer-joined" | "peer-left" | "ice-server" | T;
     userId: string;
     users: { userId: string }[];
     payload: P;
-    iceToken?: string;
+    url: string;
   };
 
   const { userId, appId, room, host, autoRejoin = true, logLine } = params;
@@ -70,6 +71,8 @@ export function enterRoom<T extends string, P = any>(params: {
         logLine?.("🖥️ ➡️ 👤", msg);
         if (msg.type === "peer-joined" || msg.type === "peer-left") {
           updatePeers(msg.users);
+        } else if (msg.type === "ice-server") {
+          params.onIceUrl(msg.url);
         } else if (msg.userId) {
           params.onMessage(msg.type, msg.payload, {
             userId: msg.userId,

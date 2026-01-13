@@ -13,6 +13,7 @@ export function enterRoom<T extends string, P = any>({
   onError,
   onPeerJoined,
   onPeerLeft,
+  onIceUrl,
   onMessage,
   logLine,
   workerUrl,
@@ -27,6 +28,7 @@ export function enterRoom<T extends string, P = any>({
   onError?: () => void;
   onPeerJoined: (users: IPeer<T, P>[]) => void;
   onPeerLeft: (users: { userId: string }[]) => void;
+  onIceUrl(url: string): void;
   onMessage: (type: T, payload: P, from: IPeer<T, P>) => void;
   logLine?: (direction: string, obj?: any) => void;
 
@@ -51,6 +53,7 @@ export function enterRoom<T extends string, P = any>({
       onError,
       onPeerJoined,
       onPeerLeft,
+      onIceUrl,
       onMessage,
     });
   }
@@ -86,6 +89,7 @@ export function enterRoom<T extends string, P = any>({
     else if (ev.kind === "peer-joined")
       onPeerJoined(ev.users.map((ev) => makeUser({ userId: ev.userId })));
     else if (ev.kind === "peer-left") onPeerLeft(ev.users);
+    else if (ev.kind === "ice-server") onIceUrl(ev.url);
     else if (ev.kind === "message")
       onMessage(ev.type, ev.payload, makeUser({ userId: ev.fromUserId }));
     else if (ev.kind === "log") logLine?.(ev.direction, ev.obj);

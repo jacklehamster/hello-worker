@@ -40,8 +40,7 @@ export class Room implements DurableObject {
   }
 
   async fetch(req: Request): Promise<Response> {
-    const { appId, roomId, userId } = extractPathInfo(req);
-    console.debug(">>>", req.url);
+    const { appId, roomId, userId, host } = extractPathInfo(req);
 
     if (!appId || !roomId) {
       return new Response("Missing appId or roomId", { status: 400 });
@@ -50,8 +49,7 @@ export class Room implements DurableObject {
       return new Response("Missing userId", { status: 400 });
     }
     const pair = new WebSocketPair();
-    const client = pair[0];
-    const server = pair[1];
+    const [client, server] = pair;
 
     // IMPORTANT: accept first
     this.state.acceptWebSocket(server);
@@ -63,12 +61,19 @@ export class Room implements DurableObject {
       `Room ${this.state.id.toString()} (${appId}/${roomId}) got new peer: (userId=${userId})`
     );
 
-    const iceToken = await this.getIceToken(appId, roomId, userId);
-
     // Notify existing peers about the newcomer
     const sockets = this.state.getWebSockets();
     for (const ws of this.state.getWebSockets()) {
-      if (ws === server) continue;
+      //  Provide ice token
+      const iceToken = await this.getIceToken(appId, roomId, userId);
+      ws.send(
+        JSON.stringify({
+          type: "ice-server",
+          url: `https://${host}/api/ice?token=${iceToken.token}`,
+        })
+      );
+
+      if (ws === server) continue; //  don't anounce peer joined to self
       try {
         ws.send(
           JSON.stringify({
@@ -77,12 +82,10 @@ export class Room implements DurableObject {
             users: this.getAttachments(sockets).map(({ userId }) => ({
               userId,
             })),
-            iceToken: iceToken.token,
           })
         );
       } catch {}
     }
-
     return new Response(null, { status: 101, webSocket: client });
   }
 

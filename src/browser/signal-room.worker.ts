@@ -8,6 +8,7 @@ export type RoomEvent<T extends string = string, P = any> =
   | { kind: "error" }
   | { kind: "peer-joined"; users: { userId: string }[] }
   | { kind: "peer-left"; users: { userId: string }[] }
+  | { kind: "ice-server"; url: string }
   | {
       kind: "message";
       type: T;
@@ -87,6 +88,9 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
           peerSend.delete(`${msg.host}/${msg.room}/${userId}`)
         );
         emit({ kind: "peer-left", users });
+      },
+      onIceUrl(url: string) {
+        emit({ kind: "ice-server", url });
       },
       onMessage: (type: any, payload: any, from: IPeer) => {
         // We can also learn peerSend via onMessage in case join events vary
