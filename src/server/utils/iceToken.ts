@@ -56,12 +56,14 @@ export async function mintIceToken(opts: {
   return { token: `${payloadB64}.${sig}`, expiration };
 }
 
-export async function verifyIceToken(opts: { secret: string; token: string }) {
-  const parts = opts.token.split(".");
-  if (parts.length !== 2) return null;
+export async function verifyIceToken(opts: {
+  secret: string;
+  token: string | null;
+}) {
+  const parts = opts.token?.split(".");
+  if (parts?.length !== 2) return null;
 
-  const payloadB64 = parts[0];
-  const sig = parts[1];
+  const [payloadB64, sig] = parts;
 
   const payload = td.decode(bytesFromB64url(payloadB64));
 

@@ -1,5 +1,6 @@
 import { Request } from "@cloudflare/workers-types";
 import { Env } from "./env";
+import { verifyIceToken } from "./utils/iceToken";
 
 export class IceServer {
   corsAnyOrigin() {
@@ -28,6 +29,18 @@ export class IceServer {
     if (url.pathname === "/api/ice") {
       if (req.method === "OPTIONS")
         return this.withCors(new Response(null, { status: 204 }));
+
+      const token = url.searchParams.get("token");
+      const result = await verifyIceToken({
+        secret: env.ICE_AUTH_SECRET,
+        token,
+      });
+      if (!result) {
+        return this.withCors(new Response("Unauthorized", { status: 401 }));
+      }
+      console.debug(
+        `Providing ice servers for ${result.userId} in ${result.appId}/${result.roomId}`
+      );
 
       const r = await fetch(
         `https://rtc.live.cloudflare.com/v1/turn/keys/${env.CF_TURN_TOKEN_ID}/credentials/generate-ice-servers`,
