@@ -68,7 +68,6 @@ export function enterRoom<T extends string, P = any>(params: {
     ws.onmessage = (e: MessageEvent) => {
       try {
         const result = JSON.parse(e.data);
-        console.log(">>", result);
         const msgs: Message[] = Array.isArray(result) ? result : [result];
         msgs.forEach((msg) => {
           logLine?.("🖥️ ➡️ 👤", msg);
