@@ -247,6 +247,7 @@ export function collectPeerConnections({
 
         onIceUrl(url) {
           iceUrl = url;
+          console.log("Ice Url updated", iceUrl);
         },
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
