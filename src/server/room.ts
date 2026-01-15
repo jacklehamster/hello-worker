@@ -136,6 +136,15 @@ export class Room implements DurableObject {
       return;
     }
 
+    if (msg.type === "request-ice") {
+      ws.send(
+        JSON.stringify({
+          type: "ice-server",
+          url: `https://${host}/api/ice?token=${iceToken.token}`,
+        })
+      );
+    }
+
     // Generic relay: require msg.to
     if (typeof msg.to === "string") {
       const toUserId = msg.to;

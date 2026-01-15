@@ -31,12 +31,13 @@ export type WorkerCommand<T extends string = string, P = any> =
       cmd: "send";
       host: string;
       room: string;
-      toUserId: string;
+      toUserId?: string;
       type: T;
-      payload: P;
+      payload?: P;
     };
 
 let exitRoom: (() => void) | null = null;
+let sendToServer: (type: string, payload?: any) => void;
 
 // Map from userId -> a function to send to that peer (comes from IUser.receive)
 const peerSend = new Map<string, (type: any, payload: any) => boolean>();
@@ -105,12 +106,17 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
     });
 
     exitRoom = result.exitRoom;
+    sendToServer = result.sendToServer;
     return;
   }
 
   if (msg.cmd === "send") {
-    const sendFn = peerSend.get(`${msg.host}/${msg.room}/${msg.toUserId}`);
-    if (sendFn) sendFn(msg.type, msg.payload);
+    if (msg.toUserId) {
+      const sendFn = peerSend.get(`${msg.host}/${msg.room}/${msg.toUserId}`);
+      if (sendFn) sendFn(msg.type, msg.payload);
+    } else {
+      sendToServer?.(msg.type, msg.payload);
+    }
     return;
   }
 

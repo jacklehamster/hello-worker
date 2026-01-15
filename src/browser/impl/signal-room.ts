@@ -20,7 +20,10 @@ export function enterRoom<T extends string, P = any>(params: {
   onIceUrl?(url: string): void;
   onMessage(type: T, payload: P, from: IPeer<T, P>): void;
   autoRejoin?: boolean;
-}): { exitRoom: () => void } {
+}): {
+  exitRoom: () => void;
+  sendToServer: (type: T, payload?: P) => void;
+} {
   type Message = {
     type: "peer-joined" | "peer-left" | "ice-server" | T;
     userId: string;
@@ -43,7 +46,7 @@ export function enterRoom<T extends string, P = any>(params: {
   )}`;
 
   // Helper for sending (uses the current ws instance)
-  function send(type: T, to: string, payload: P) {
+  function send(type: T, to: string, payload?: P) {
     if (!ws) return false;
     if (exited || ws.readyState !== WebSocket.OPEN) return false;
     const obj = { type, to, payload };
@@ -155,6 +158,9 @@ export function enterRoom<T extends string, P = any>(params: {
   connect();
 
   return {
+    sendToServer: (type: T, payload?: P) => {
+      send(type, "", payload);
+    },
     exitRoom: () => {
       exited = true;
       clearTimeout(timeoutId);

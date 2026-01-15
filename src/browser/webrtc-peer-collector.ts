@@ -1,7 +1,7 @@
 import { IPeer } from "./impl/signal-room";
 import { EnterRoom, enterRoom } from "./signal-room";
 
-export type SigType = "offer" | "answer" | "ice";
+export type SigType = "offer" | "answer" | "ice" | "request-ice";
 export type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
 
 type UserState = {
@@ -56,7 +56,10 @@ export function collectPeerConnections({
   const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
   let iceUrl: string | undefined = undefined;
-  let rtcConfig: (RTCConfiguration & { timestamp: number }) | undefined;
+  let rtcConfig: RTCConfiguration & { timestamp: number } = {
+    ...fallbackRtcConfig,
+    timestamp: Date.now(),
+  };
 
   async function getRtcConfig(): Promise<RTCConfiguration> {
     if (iceUrl) {
@@ -179,7 +182,9 @@ export function collectPeerConnections({
         user.receive("offer", pc?.localDescription?.toJSON()!);
       }
 
-      const { exitRoom } = enterRoom({
+      let icePromiseResolve: undefined | ((url: string) => void);
+
+      const { exitRoom, sendToServer } = enterRoom({
         userId,
         appId,
         room,
@@ -202,7 +207,6 @@ export function collectPeerConnections({
 
         // Existing peers initiate to the newcomer
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
-          console.log("Peer joined");
           joiningUsers.forEach(async (user) => {
             const [state, isNewPeer] = await getPeer(user);
             if (!isNewPeer) return;
@@ -210,6 +214,11 @@ export function collectPeerConnections({
             if (!pc) return;
 
             async function restart() {
+              await new Promise((resolve) => {
+                sendToServer("request-ice");
+                icePromiseResolve = resolve;
+              });
+              icePromiseResolve = undefined;
               const state = users.get(user.userId);
               if (state) {
                 state.pc = undefined;
@@ -248,7 +257,7 @@ export function collectPeerConnections({
 
         onIceUrl(url) {
           iceUrl = url;
-          console.log("Ice Url updated", iceUrl);
+          icePromiseResolve?.(url);
         },
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
