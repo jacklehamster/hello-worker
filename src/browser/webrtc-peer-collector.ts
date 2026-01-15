@@ -202,6 +202,7 @@ export function collectPeerConnections({
 
         // Existing peers initiate to the newcomer
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
+          console.log("Peer joined");
           joiningUsers.forEach(async (user) => {
             const [state, isNewPeer] = await getPeer(user);
             if (!isNewPeer) return;
