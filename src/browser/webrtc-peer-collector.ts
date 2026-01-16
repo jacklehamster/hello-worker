@@ -20,7 +20,7 @@ type UserState = {
 const DEFAULT_ENTER_ROOM = enterRoom;
 
 export function collectPeerConnections({
-  appId,
+  worldId,
   receivePeerConnection,
   peerlessUserExpiration = 5000,
   fallbackRtcConfig = {
@@ -33,7 +33,7 @@ export function collectPeerConnections({
   onRoomReady,
   onRoomClose,
 }: {
-  appId: string;
+  worldId: string;
   fallbackRtcConfig?: RTCConfiguration;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
   onLeaveUser?: (userId: string) => void;
@@ -186,7 +186,7 @@ export function collectPeerConnections({
 
       const { exitRoom, sendToServer } = enterRoom({
         userId,
-        appId,
+        worldId,
         room,
         host,
         logLine,

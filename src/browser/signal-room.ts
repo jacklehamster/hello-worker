@@ -4,7 +4,7 @@ import { RoomEvent, WorkerCommand } from "./signal-room.worker.js";
 
 export function enterRoom<T extends string, P = any>({
   userId,
-  appId,
+  worldId,
   room,
   host,
   autoRejoin = true,
@@ -19,7 +19,7 @@ export function enterRoom<T extends string, P = any>({
   workerUrl,
 }: {
   userId: string;
-  appId: string;
+  worldId: string;
   room: string;
   host: string;
   autoRejoin?: boolean;
@@ -44,7 +44,7 @@ export function enterRoom<T extends string, P = any>({
     );
     return baseEnterRoom<T, P>({
       userId,
-      appId,
+      worldId,
       room,
       host,
       autoRejoin,
@@ -100,7 +100,7 @@ export function enterRoom<T extends string, P = any>({
   worker.postMessage({
     cmd: "enter",
     userId,
-    appId,
+    worldId,
     room,
     host,
     autoRejoin,

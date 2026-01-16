@@ -2,7 +2,7 @@ import { Request } from "@cloudflare/workers-types";
 
 export function extractPathInfo(request: Request): {
   roomId?: string;
-  appId?: string;
+  worldId?: string;
   userId?: string;
   host: string;
 } {
@@ -10,7 +10,7 @@ export function extractPathInfo(request: Request): {
   const match = url.pathname.match(/^\/room\/([^/]+)\/([^/]+)$/);
   const userId = url.searchParams.get("userId") ?? undefined;
 
-  const appId = match ? decodeURIComponent(match[1]) : undefined;
+  const worldId = match ? decodeURIComponent(match[1]) : undefined;
   const roomId = match ? decodeURIComponent(match[2]) : undefined;
-  return { appId, roomId, userId, host: url.host };
+  return { worldId, roomId, userId, host: url.host };
 }

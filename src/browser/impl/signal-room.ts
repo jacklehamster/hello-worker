@@ -8,7 +8,7 @@ export interface IPeer<T extends string = string, P = any> {
  */
 export function enterRoom<T extends string, P = any>(params: {
   userId: string;
-  appId: string;
+  worldId: string;
   room: string;
   host: string;
   onOpen?: () => void;
@@ -32,7 +32,7 @@ export function enterRoom<T extends string, P = any>(params: {
     url: string;
   };
 
-  const { userId, appId, room, host, autoRejoin = true, logLine } = params;
+  const { userId, worldId, room, host, autoRejoin = true, logLine } = params;
 
   let exited = false;
   let retryCount = 0;
@@ -41,7 +41,7 @@ export function enterRoom<T extends string, P = any>(params: {
   let initialConnection = true;
 
   const peers = new Map<string, IPeer<T, P>>();
-  const wsUrl = `wss://${host}/room/${appId}/${room}?userId=${encodeURIComponent(
+  const wsUrl = `wss://${host}/room/${worldId}/${room}?userId=${encodeURIComponent(
     userId
   )}`;
 

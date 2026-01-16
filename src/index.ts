@@ -15,9 +15,9 @@ export default {
       }
     }
 
-    // If NOT /room/<appId/<roomId>, serve test HTML
-    const { appId, roomId } = extractPathInfo(req);
-    if (!appId || !roomId) {
+    // If NOT /room/<worldId/<roomId>, serve test HTML
+    const { worldId, roomId } = extractPathInfo(req);
+    if (!worldId || !roomId) {
       // everything else falls through to static assets
       return env.ASSETS.fetch(req);
     }
@@ -28,10 +28,10 @@ export default {
       return new Response("Expected WebSocket", { status: 426 });
     }
 
-    if (!appId || !roomId) {
+    if (!worldId || !roomId) {
       return new Response("App id and room id required", { status: 400 });
     }
-    const id = env.ROOM.idFromName(`${appId}/${roomId}`);
+    const id = env.ROOM.idFromName(`${worldId}/${roomId}`);
     const stub = env.ROOM.get(id);
 
     return stub.fetch(req);

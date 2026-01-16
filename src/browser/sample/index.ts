@@ -31,7 +31,7 @@ export function clearLog() {
 export function testWelcome() {
   const { exitRoom } = enterRoom({
     userId: crypto.randomUUID(),
-    appId: "signal-test",
+    worldId: "signal-test",
     room: "test",
     host: location.host,
     autoRejoin: true,
@@ -84,7 +84,7 @@ export function testWebRTC() {
 
   const session = enterWorld({
     logLine,
-    appId: "webRTC-test",
+    worldId: "webRTC-test",
     workerUrl: new URL("../signal-room.worker.js", import.meta.url),
     dataChannelOptions: {
       ordered: false,

@@ -39,7 +39,7 @@ export class IceServer {
         return this.withCors(new Response("Unauthorized", { status: 401 }));
       }
       console.debug(
-        `Providing ice servers for ${result.userId} in ${result.appId}/${result.roomId}`
+        `Providing ice servers for ${result.userId} in ${result.worldId}/${result.roomId}`
       );
 
       const r = await fetch(

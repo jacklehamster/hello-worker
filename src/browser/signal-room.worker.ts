@@ -21,7 +21,7 @@ export type WorkerCommand<T extends string = string, P = any> =
   | {
       cmd: "enter";
       userId: string;
-      appId: string;
+      worldId: string;
       room: string;
       host: string;
       autoRejoin: boolean;
@@ -58,7 +58,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
 
     const result = enterRoom({
       userId: msg.userId,
-      appId: msg.appId,
+      worldId: msg.worldId,
       room: msg.room,
       host: msg.host,
       autoRejoin: msg.autoRejoin,

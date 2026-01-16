@@ -12,7 +12,7 @@ type UserListener = (
 ) => void;
 
 export function enterWorld<D extends string | Uint8Array>({
-  appId,
+  worldId,
   logLine = console.debug,
   enterRoomFunction = enterRoom,
   peerlessUserExpiration,
@@ -21,7 +21,7 @@ export function enterWorld<D extends string | Uint8Array>({
   onRoomClose,
   dataChannelOptions,
 }: {
-  appId: string;
+  worldId: string;
   logLine?: (direction: string, obj?: any) => void;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
   peerlessUserExpiration?: number;
@@ -96,7 +96,7 @@ export function enterWorld<D extends string | Uint8Array>({
     leaveUser,
     end: endPeerCollection,
   } = collectPeerConnections({
-    appId,
+    worldId,
     enterRoomFunction,
     logLine,
     workerUrl,

@@ -37,17 +37,17 @@ async function verify(key: CryptoKey, msg: string, sigB64url: string) {
 }
 
 // Token format: base64url(payload) + "." + base64url(hmac)
-// payload is a compact string: appId|roomId|userId|expMs|nonce
+// payload is a compact string: worldId|roomId|userId|expMs|nonce
 export async function mintIceToken(opts: {
   secret: string;
-  appId?: string;
+  worldId?: string;
   roomId?: string;
   userId?: string;
   ttlMs: number;
 }) {
   const expiration = Date.now() + opts.ttlMs;
   const nonce = crypto.randomUUID();
-  const payload = `${opts.appId}|${opts.roomId}|${opts.userId}|${expiration}|${nonce}`;
+  const payload = `${opts.worldId}|${opts.roomId}|${opts.userId}|${expiration}|${nonce}`;
 
   const key = await importHmacKey(opts.secret);
   const sig = await sign(key, payload);
@@ -71,9 +71,9 @@ export async function verifyIceToken(opts: {
   const ok = await verify(key, payload, sig);
   if (!ok) return null;
 
-  const [appId, roomId, userId, expMsStr] = payload.split("|");
+  const [worldId, roomId, userId, expMsStr] = payload.split("|");
   const expiration = Number(expMsStr);
   if (!Number.isFinite(expiration) || Date.now() > expiration) return null;
 
-  return { appId, roomId, userId, expiration };
+  return { worldId, roomId, userId, expiration };
 }
