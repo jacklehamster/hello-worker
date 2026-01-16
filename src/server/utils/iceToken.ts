@@ -38,16 +38,16 @@ async function verify(key: CryptoKey, msg: string, sigB64url: string) {
 
 // Token format: base64url(payload) + "." + base64url(hmac)
 // payload is a compact string: worldId|roomId|userId|expMs|nonce
-export async function mintIceToken(opts: {
-  secret: string;
-  worldId?: string;
-  roomId?: string;
-  userId?: string;
-  ttlMs: number;
-}) {
-  const expiration = Date.now() + opts.ttlMs;
+export async function mintIceToken<T extends Record<string, any>>(
+  opts: {
+    secret: string;
+    ttlMs: number;
+  } & T
+) {
+  const { secret, ttlMs, ...args } = opts;
+  const expiration = Date.now() + ttlMs;
   const nonce = crypto.randomUUID();
-  const payload = `${opts.worldId}|${opts.roomId}|${opts.userId}|${expiration}|${nonce}`;
+  const payload = `${JSON.stringify(args)}|${expiration}|${nonce}`;
 
   const key = await importHmacKey(opts.secret);
   const sig = await sign(key, payload);
@@ -56,7 +56,7 @@ export async function mintIceToken(opts: {
   return { token: `${payloadB64}.${sig}`, expiration };
 }
 
-export async function verifyIceToken(opts: {
+export async function verifyIceToken<T extends Record<string, any>>(opts: {
   secret: string;
   token: string | null;
 }) {
@@ -71,9 +71,10 @@ export async function verifyIceToken(opts: {
   const ok = await verify(key, payload, sig);
   if (!ok) return null;
 
-  const [worldId, roomId, userId, expMsStr] = payload.split("|");
+  const [jsonArgs, expMsStr] = payload.split("|");
+  const args: T = JSON.parse(jsonArgs);
   const expiration = Number(expMsStr);
   if (!Number.isFinite(expiration) || Date.now() > expiration) return null;
 
-  return { worldId, roomId, userId, expiration };
+  return { ...args, expiration };
 }

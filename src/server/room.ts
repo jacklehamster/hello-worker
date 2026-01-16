@@ -16,7 +16,12 @@ type AnyJson =
   | AnyJson[]
   | { [k: string]: AnyJson };
 
-type Attachment = { userId: string };
+type Attachment = {
+  userId: string;
+  worldId: string;
+  roomId: string;
+  host: string;
+};
 
 function getAttachment(ws: WebSocket): Attachment | null {
   try {
@@ -54,8 +59,13 @@ export class Room implements DurableObject {
     // IMPORTANT: accept first
     this.state.acceptWebSocket(server);
 
-    // Persist peerId via attachment (survives hibernation)
-    server.serializeAttachment({ userId } satisfies Attachment);
+    // Persist userId via attachment (survives hibernation)
+    server.serializeAttachment({
+      userId,
+      worldId,
+      roomId,
+      host,
+    } satisfies Attachment);
 
     console.debug(
       `Room ${this.state.id.toString()} (${worldId}/${roomId}) got new peer: (userId=${userId})`
@@ -103,7 +113,7 @@ export class Room implements DurableObject {
       .filter((a): a is Attachment => !!a);
   }
 
-  webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
     const attachment = getAttachment(ws);
     console.debug(
       `Room ${this.state.id.toString()} got message from ${attachment?.userId}`,
@@ -137,6 +147,9 @@ export class Room implements DurableObject {
     }
 
     if (msg.type === "request-ice") {
+      const { worldId, roomId, userId, host } = attachment;
+      //  Provide ice token
+      const iceToken = await this.getIceToken(worldId, roomId, userId);
       ws.send(
         JSON.stringify({
           type: "ice-server",
