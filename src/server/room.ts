@@ -140,7 +140,15 @@ export class Room implements DurableObject {
 
     if (typeof message !== "string") {
       //  Non-string messages just get broadcasted
-      this.broadcast(message);
+      for (const other of this.state.getWebSockets()) {
+        if (other === ws) return;
+        try {
+          other.send(message);
+        } catch {
+          console.warn("Failed to send");
+        }
+      }
+
       console.debug(
         "Broadcasted message from",
         attachment.userId,
@@ -242,16 +250,6 @@ export class Room implements DurableObject {
     );
   }
 
-  broadcast(msg: Parameters<WebSocket["send"]>[0]) {
-    for (const other of this.state.getWebSockets()) {
-      try {
-        other.send(msg);
-      } catch {
-        console.warn("Failed to send");
-      }
-    }
-  }
-
   private timeout: ReturnType<typeof setTimeout> = 0;
   private readonly broadcastMessages: {
     type: string;
@@ -271,7 +269,18 @@ export class Room implements DurableObject {
     clearTimeout(this.timeout);
     this.broadcastMessages.push({ type, userId, payload });
     this.timeout = setTimeout(() => {
-      this.broadcast(JSON.stringify(this.broadcastMessages));
+      for (const other of this.state.getWebSockets()) {
+        const attachment = getAttachment(other);
+        const filteredMessages = this.broadcastMessages.filter(
+          ({ userId }) => attachment?.userId !== userId,
+        );
+        if (!filteredMessages.length) continue;
+        try {
+          other.send(JSON.stringify(filteredMessages));
+        } catch {
+          console.warn("Failed to send");
+        }
+      }
       this.broadcastMessages.length = 0;
     });
   }
