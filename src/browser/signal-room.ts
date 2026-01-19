@@ -84,7 +84,6 @@ export function enterRoom<T extends string, P = any>({
 
   const onWorkerMessage = (e: MessageEvent<RoomEvent<T, P>>) => {
     const ev = e.data;
-    console.log("worker event", ev);
 
     if (ev.kind === "open") onOpen?.();
     else if (ev.kind === "close") {

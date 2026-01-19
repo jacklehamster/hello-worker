@@ -270,6 +270,7 @@ export function collectPeerConnections({
         },
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
+          console.log("ONMESSAGE", type, payload, from);
           const [state] = await getPeer(from);
           const pc = state.pc;
           if (!pc) return;
