@@ -140,8 +140,8 @@ export function testWebRTC(websocketBroadcast: boolean) {
     .then(() => {
       statusEl.textContent = "🟢 connected";
     });
-  session.addMessageListener((data) => {
-    console.log(data);
+  session.addMessageListener((data, from) => {
+    console.log(data, from);
     try {
       const { x, y } = JSON.parse(String(data));
       if (typeof x === "number" && typeof y === "number") {
