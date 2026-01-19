@@ -32,7 +32,10 @@ function getAttachment(ws: WebSocket): Attachment | null {
 }
 
 export class Room implements DurableObject {
-  constructor(private state: DurableObjectState, private env: Env) {}
+  constructor(
+    private state: DurableObjectState,
+    private env: Env,
+  ) {}
 
   async getIceToken(worldId: string, roomId: string, userId: string) {
     return await mintIceToken({
@@ -68,7 +71,7 @@ export class Room implements DurableObject {
     } satisfies Attachment);
 
     console.debug(
-      `Room ${this.state.id.toString()} (${worldId}/${roomId}) got new peer: (userId=${userId})`
+      `Room ${this.state.id.toString()} (${worldId}/${roomId}) got new peer: (userId=${userId})`,
     );
 
     //  Provide ice token
@@ -82,7 +85,7 @@ export class Room implements DurableObject {
           JSON.stringify({
             type: "ice-server",
             url: `https://${host}/api/ice?token=${iceToken.token}`,
-          })
+          }),
         );
       } else {
         try {
@@ -99,7 +102,7 @@ export class Room implements DurableObject {
                   userId,
                 })),
               },
-            ])
+            ]),
           );
         } catch {}
       }
@@ -117,7 +120,7 @@ export class Room implements DurableObject {
     const attachment = getAttachment(ws);
     console.debug(
       `Room ${this.state.id.toString()} got message from ${attachment?.userId}`,
-      message
+      message,
     );
 
     if (!attachment) {
@@ -135,7 +138,7 @@ export class Room implements DurableObject {
     }
 
     let msg: {
-      to?: string;
+      to?: "server" | "broadcast" | string;
       type?: string;
       payload?: AnyJson;
     };
@@ -146,21 +149,30 @@ export class Room implements DurableObject {
       return;
     }
 
-    if (msg.type === "request-ice") {
-      const { worldId, roomId, userId, host } = attachment;
-      //  Provide ice token
-      const iceToken = await this.getIceToken(worldId, roomId, userId);
-      ws.send(
-        JSON.stringify({
-          type: "ice-server",
-          url: `https://${host}/api/ice?token=${iceToken.token}`,
-        })
-      );
+    if (msg.to === "server") {
+      this.handleServerMessage({
+        type: msg.type,
+        payload: msg.payload,
+        ws,
+        attachment,
+      });
+      if (msg.type === "request-ice") {
+        const { worldId, roomId, userId, host } = attachment;
+        //  Provide ice token
+        const iceToken = await this.getIceToken(worldId, roomId, userId);
+        ws.send(
+          JSON.stringify({
+            type: "ice-server",
+            url: `https://${host}/api/ice?token=${iceToken.token}`,
+          }),
+        );
+      }
+      return;
     }
 
     // Generic relay: require msg.to
     if (typeof msg.to === "string") {
-      const toUserId = msg.to;
+      const toUserId: "broadcast" | string = msg.to;
 
       const out = {
         type: msg.type,
@@ -169,16 +181,25 @@ export class Room implements DurableObject {
       };
 
       for (const other of this.state.getWebSockets()) {
-        if (getAttachment(other)?.userId === toUserId) {
+        if (
+          toUserId === "broadcast" ||
+          getAttachment(other)?.userId === toUserId
+        ) {
           try {
             other.send(JSON.stringify(out));
-          } catch {}
+          } catch {
+            console.warn("Failed to send", toUserId);
+          }
           return;
         }
       }
 
       ws.send(
-        JSON.stringify({ type: "error", error: "user-not-found", to: toUserId })
+        JSON.stringify({
+          type: "error",
+          error: "user-not-found",
+          to: toUserId,
+        }),
       );
       return;
     }
@@ -191,7 +212,7 @@ export class Room implements DurableObject {
     console.debug(
       `Room ${this.state.id.toString()} peer disconnected: ${
         attachment?.userId
-      }`
+      }`,
     );
 
     if (!attachment) return;
@@ -208,9 +229,9 @@ export class Room implements DurableObject {
             type: "peer-left",
             userId,
             users: this.getAttachments(sockets.filter((s) => s !== ws)).map(
-              ({ userId }) => ({ userId })
+              ({ userId }) => ({ userId }),
             ),
-          })
+          }),
         );
       } catch {}
     }
@@ -220,7 +241,40 @@ export class Room implements DurableObject {
     const peerId = getAttachment(ws);
     console.error(
       `Room ${this.state.id.toString()} ws error for peer ${peerId}:`,
-      err
+      err,
     );
+  }
+
+  async handleServerMessage({
+    type,
+    ws,
+    attachment,
+    payload,
+  }: {
+    type?: string;
+    ws: WebSocket;
+    attachment: Attachment;
+    payload?: AnyJson;
+  }) {
+    switch (type) {
+      case "request-ice": {
+        const { worldId, roomId, userId, host } = attachment;
+        //  Provide ice token
+        const iceToken = await this.getIceToken(worldId, roomId, userId);
+        ws.send(
+          JSON.stringify({
+            type: "ice-server",
+            url: `https://${host}/api/ice?token=${iceToken.token}`,
+          }),
+        );
+      }
+      default:
+        console.debug(
+          "Unrecognized server type",
+          type,
+          "with payload",
+          payload,
+        );
+    }
   }
 }

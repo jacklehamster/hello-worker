@@ -23,6 +23,7 @@ export function enterRoom<T extends string, P = any>(params: {
 }): {
   exitRoom: () => void;
   sendToServer: (type: T, payload?: P) => void;
+  broadcast<T extends string, P extends any>(type: T, payload?: P): void;
 } {
   type Message = {
     type: "peer-joined" | "peer-left" | "ice-server" | T;
@@ -42,11 +43,15 @@ export function enterRoom<T extends string, P = any>(params: {
 
   const peers = new Map<string, IPeer<T, P>>();
   const wsUrl = `wss://${host}/room/${worldId}/${room}?userId=${encodeURIComponent(
-    userId
+    userId,
   )}`;
 
   // Helper for sending (uses the current ws instance)
-  function send(type: T, to: string, payload?: P) {
+  function send(
+    type: string,
+    to: "server" | "broadcast" | string,
+    payload?: any,
+  ) {
     if (!ws) return false;
     if (exited || ws.readyState !== WebSocket.OPEN) return false;
     const obj = { type, to, payload };
@@ -72,6 +77,7 @@ export function enterRoom<T extends string, P = any>(params: {
       try {
         const result = JSON.parse(e.data);
         const msgs: Message[] = Array.isArray(result) ? result : [result];
+        console.log(">>", msgs);
         msgs.forEach((msg) => {
           logLine?.("🖥️ ➡️ 👤", msg);
           if (msg.type === "peer-joined" || msg.type === "peer-left") {
@@ -158,8 +164,9 @@ export function enterRoom<T extends string, P = any>(params: {
   connect();
 
   return {
-    sendToServer: (type: T, payload?: P) => {
-      send(type, "", payload);
+    sendToServer: (type, payload) => send(type, "server", payload),
+    broadcast<T extends string, P extends any>(type: T, payload: P) {
+      send(type, "broadcast", payload);
     },
     exitRoom: () => {
       exited = true;

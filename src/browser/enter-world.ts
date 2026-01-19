@@ -8,7 +8,7 @@ import {
 type UserListener = (
   user: string,
   action: "join" | "leave",
-  users: string[]
+  users: string[],
 ) => void;
 
 export function enterWorld<D extends string | Uint8Array>({
@@ -42,7 +42,7 @@ export function enterWorld<D extends string | Uint8Array>({
     pc: RTCPeerConnection,
     peerUserId: string,
     initiator: boolean,
-    restart?: () => void
+    restart?: () => void,
   ) {
     if (initiator) {
       const dc = pc.createDataChannel("data", dataChannelOptions);
@@ -64,7 +64,7 @@ export function enterWorld<D extends string | Uint8Array>({
   function wireDataChannel(
     userId: string,
     dc: RTCDataChannel,
-    restart?: () => void
+    restart?: () => void,
   ) {
     dc.onopen = () => {
       logLine("💬", { event: "dc-open", userId });
@@ -94,6 +94,7 @@ export function enterWorld<D extends string | Uint8Array>({
     enterRoom,
     exitRoom,
     leaveUser,
+    broadcast,
     end: endPeerCollection,
   } = collectPeerConnections({
     worldId,
@@ -149,6 +150,7 @@ export function enterWorld<D extends string | Uint8Array>({
   return {
     userId,
     send,
+    broadcast,
     enterRoom,
     exitRoom,
     leaveUser,

@@ -34,13 +34,17 @@ export function enterRoom<T extends string, P = any>({
 
   // Pass the URL to your worker file (bundler will handle it)
   workerUrl?: URL;
-}): { exitRoom: () => void; sendToServer: (type: T, payload?: P) => void } {
+}): {
+  exitRoom: () => void;
+  sendToServer: (type: T, payload?: P) => void;
+  broadcast<T extends string, P extends any>(type: T, payload?: P): void;
+} {
   if (!workerUrl) {
     const CDN_WORKER_URL = `https://cdn.jsdelivr.net/npm/@dobuki/hello-worker/dist/signal-room.worker.min.js`;
 
     console.warn(
       "Warning: enterRoom called without workerUrl; this may cause issues in some environments. You should pass workerUrl explicitly. Use:",
-      CDN_WORKER_URL
+      CDN_WORKER_URL,
     );
     return baseEnterRoom<T, P>({
       userId,
@@ -115,6 +119,17 @@ export function enterRoom<T extends string, P = any>({
     sendToServer: (type: T, payload?: P) => {
       worker.postMessage({
         cmd: "send",
+        toUserId: "server",
+        host,
+        room,
+        type,
+        payload,
+      } as WorkerCommand);
+    },
+    broadcast<T extends string, P extends any>(type: T, payload?: P) {
+      worker.postMessage({
+        cmd: "send",
+        toUserId: "broadcast",
         host,
         room,
         type,

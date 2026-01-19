@@ -14,7 +14,7 @@ function ts() {
   const p2 = (n: number) => String(n).padStart(2, "0");
   const p3 = (n: number) => String(n).padStart(3, "0");
   return `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}.${p3(
-    d.getMilliseconds()
+    d.getMilliseconds(),
   )}`;
 }
 
@@ -49,7 +49,7 @@ export function testWelcome() {
     },
     onPeerJoined: (users) => {
       users.forEach((user) =>
-        user.receive("welcome", { note: welcomeEl.value })
+        user.receive("welcome", { note: welcomeEl.value }),
       );
     },
     onPeerLeft: (info) => {
@@ -69,7 +69,7 @@ export function testWelcome() {
   };
 }
 
-export function testWebRTC() {
+export function testWebRTC(websocketBroadcast: boolean) {
   function setEmojiPos01(x01: number, y01: number) {
     const r = stageEl!.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, x01)) * r.width;
@@ -163,7 +163,11 @@ export function testWebRTC() {
 
     const msg = JSON.stringify({ x: x01, y: y01 });
 
-    session.send(msg);
+    if (websocketBroadcast) {
+      session.broadcast("move", msg);
+    } else {
+      session.send(msg);
+    }
   }
 
   function onPointerMove(ev: PointerEvent) {

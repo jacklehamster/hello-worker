@@ -61,6 +61,20 @@ export function collectPeerConnections({
     timestamp: Date.now(),
   };
 
+  const roomsEntered = new Map<
+    string,
+    {
+      room: string;
+      host: string;
+      exitRoom: () => void;
+      broadcast: <T extends string, P extends any>(type: T, payload: P) => void;
+    }
+  >();
+
+  function broadcast<T extends string, P extends any>(type: T, payload: P) {
+    roomsEntered.forEach((room) => room.broadcast(type, payload));
+  }
+
   async function getRtcConfig(): Promise<RTCConfiguration> {
     if (iceUrl) {
       try {
@@ -80,7 +94,7 @@ export function collectPeerConnections({
     state.pc = new RTCPeerConnection(
       Date.now() - (rtcConfig?.timestamp ?? 0) < 10000
         ? rtcConfig
-        : await getRtcConfig()
+        : await getRtcConfig(),
     );
     // Send local ICE candidates to this peer
     state.pc.onicecandidate = (ev) => {
@@ -99,7 +113,7 @@ export function collectPeerConnections({
   }
 
   async function getPeer(
-    peer: IPeer<SigType, SigPayload>
+    peer: IPeer<SigType, SigPayload>,
   ): Promise<[UserState, boolean]> {
     let state = users.get(peer.userId);
     let isNewPeer = false;
@@ -157,11 +171,6 @@ export function collectPeerConnections({
     }
   }
 
-  const roomsEntered = new Map<
-    string,
-    { room: string; host: string; exitRoom: () => void }
-  >();
-
   function exit({ room, host }: { room: string; host: string }) {
     const key = `${host}/room/${room}`;
     const session = roomsEntered.get(key);
@@ -184,7 +193,7 @@ export function collectPeerConnections({
 
       let icePromiseResolve: undefined | ((url: string) => void);
 
-      const { exitRoom, sendToServer } = enterRoom({
+      const { exitRoom, sendToServer, broadcast } = enterRoom({
         userId,
         worldId,
         room,
@@ -250,7 +259,7 @@ export function collectPeerConnections({
             if (!state) return;
             state.expirationTimeout = setTimeout(
               () => leaveUser(userId),
-              peerlessUserExpiration ?? 0
+              peerlessUserExpiration ?? 0,
             );
           });
         },
@@ -318,7 +327,12 @@ export function collectPeerConnections({
           }
         },
       });
-      roomsEntered.set(`${host}/room/${room}`, { exitRoom, room, host });
+      roomsEntered.set(`${host}/room/${room}`, {
+        exitRoom,
+        room,
+        host,
+        broadcast,
+      });
     });
   }
 
@@ -327,6 +341,7 @@ export function collectPeerConnections({
     enterRoom: enter,
     exitRoom: exit,
     leaveUser,
+    broadcast,
     end() {
       roomsEntered.forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();

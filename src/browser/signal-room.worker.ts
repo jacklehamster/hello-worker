@@ -31,13 +31,14 @@ export type WorkerCommand<T extends string = string, P = any> =
       cmd: "send";
       host: string;
       room: string;
-      toUserId?: string;
+      toUserId?: "server" | "broadcast" | string;
       type: T;
       payload?: P;
     };
 
 let exitRoom: (() => void) | null = null;
 let sendToServer: (type: string, payload?: any) => void;
+let broadcast: <T extends string, P extends any>(type: T, payload?: P) => void;
 
 // Map from userId -> a function to send to that peer (comes from IUser.receive)
 const peerSend = new Map<string, (type: any, payload: any) => boolean>();
@@ -77,7 +78,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       onPeerJoined: (users: IPeer[]) => {
         // Save the ability to send to this peer
         users.forEach(({ userId, receive }) =>
-          peerSend.set(`${msg.host}/${msg.room}/${userId}`, receive)
+          peerSend.set(`${msg.host}/${msg.room}/${userId}`, receive),
         );
         emit({
           kind: "peer-joined",
@@ -86,7 +87,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       },
       onPeerLeft: (users: { userId: string }[]) => {
         users.forEach(({ userId }) =>
-          peerSend.delete(`${msg.host}/${msg.room}/${userId}`)
+          peerSend.delete(`${msg.host}/${msg.room}/${userId}`),
         );
         emit({ kind: "peer-left", users });
       },
@@ -107,15 +108,18 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
 
     exitRoom = result.exitRoom;
     sendToServer = result.sendToServer;
+    broadcast = result.broadcast;
     return;
   }
 
   if (msg.cmd === "send") {
-    if (msg.toUserId) {
+    if (msg.toUserId === "server") {
+      sendToServer?.(msg.type, msg.payload);
+    } else if (msg.toUserId === "broadcast") {
+      broadcast?.(msg.type, msg.payload);
+    } else if (msg.toUserId) {
       const sendFn = peerSend.get(`${msg.host}/${msg.room}/${msg.toUserId}`);
       if (sendFn) sendFn(msg.type, msg.payload);
-    } else {
-      sendToServer?.(msg.type, msg.payload);
     }
     return;
   }
