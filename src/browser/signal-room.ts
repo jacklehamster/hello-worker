@@ -37,7 +37,7 @@ export function enterRoom<T extends string, P = any>({
 }): {
   exitRoom: () => void;
   sendToServer: (type: T, payload?: P) => void;
-  broadcast<P extends any>(type: T, payload?: P): void;
+  broadcast<T extends string, P extends any>(type: T, payload?: P): void;
 } {
   if (!workerUrl) {
     const CDN_WORKER_URL = `https://cdn.jsdelivr.net/npm/@dobuki/hello-worker/dist/signal-room.worker.min.js`;
