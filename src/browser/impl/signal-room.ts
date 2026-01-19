@@ -77,7 +77,6 @@ export function enterRoom<T extends string, P = any>(params: {
       try {
         const result = JSON.parse(e.data);
         const msgs: Message[] = Array.isArray(result) ? result : [result];
-        console.log(">>", msgs);
         msgs.forEach((msg) => {
           logLine?.("🖥️ ➡️ 👤", msg);
           if (msg.type === "peer-joined" || msg.type === "peer-left") {
