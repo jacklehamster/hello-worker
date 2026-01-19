@@ -22,8 +22,7 @@ export function enterRoom<T extends string, P = any>(params: {
   autoRejoin?: boolean;
 }): {
   exitRoom: () => void;
-  sendToServer: (type: T, payload?: P) => void;
-  broadcast<T extends string, P extends any>(type: T, payload?: P): void;
+  sendToServer: <P extends any>(type: T, payload?: P) => void;
 } {
   type Message = {
     type: "peer-joined" | "peer-left" | "ice-server" | T;
@@ -47,11 +46,7 @@ export function enterRoom<T extends string, P = any>(params: {
   )}`;
 
   // Helper for sending (uses the current ws instance)
-  function send(
-    type: string,
-    to: "server" | "broadcast" | string,
-    payload?: any,
-  ) {
+  function send(type: string, to: "server" | string, payload?: any) {
     if (!ws) return false;
     if (exited || ws.readyState !== WebSocket.OPEN) return false;
     const obj = { type, to, payload };
@@ -164,9 +159,6 @@ export function enterRoom<T extends string, P = any>(params: {
 
   return {
     sendToServer: (type, payload) => send(type, "server", payload),
-    broadcast<T extends string, P extends any>(type: T, payload: P) {
-      send(type, "broadcast", payload);
-    },
     exitRoom: () => {
       exited = true;
       clearTimeout(timeoutId);

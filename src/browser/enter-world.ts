@@ -61,6 +61,10 @@ export function enterWorld<D extends string | Uint8Array>({
     }
   }
 
+  function conveyMessage(data: any, userId: string) {
+    messagesListeners.forEach((listener) => listener(data, userId));
+  }
+
   function wireDataChannel(
     userId: string,
     dc: RTCDataChannel,
@@ -72,7 +76,7 @@ export function enterWorld<D extends string | Uint8Array>({
       userListeners.forEach((listener) => listener(userId, "join", userIds));
     };
     const onmessage = ({ data }: MessageEvent) => {
-      messagesListeners.forEach((listener) => listener(data as any, userId));
+      conveyMessage(data, userId);
       logLine("💬", { event: "dc-message", userId, data });
     };
     dc.addEventListener("message", onmessage);
@@ -113,6 +117,10 @@ export function enterWorld<D extends string | Uint8Array>({
     },
     receivePeerConnection({ pc, userId, initiator, restart }) {
       createDataChannel(pc, userId, initiator, restart);
+    },
+    onBroadcastMessage(payload, from) {
+      conveyMessage(payload, from);
+      logLine("📢", { event: "broadcast", userId, data: payload });
     },
   });
 

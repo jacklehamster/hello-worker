@@ -165,7 +165,7 @@ export function testWebRTC(websocketBroadcast: boolean) {
     const msg = JSON.stringify({ x: x01, y: y01 });
 
     if (websocketBroadcast) {
-      session.broadcast("move", msg);
+      session.broadcast(msg);
     } else {
       session.send(msg);
     }

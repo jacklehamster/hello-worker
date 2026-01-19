@@ -156,17 +156,6 @@ export class Room implements DurableObject {
         ws,
         attachment,
       });
-      if (msg.type === "request-ice") {
-        const { worldId, roomId, userId, host } = attachment;
-        //  Provide ice token
-        const iceToken = await this.getIceToken(worldId, roomId, userId);
-        ws.send(
-          JSON.stringify({
-            type: "ice-server",
-            url: `https://${host}/api/ice?token=${iceToken.token}`,
-          }),
-        );
-      }
       return;
     }
 
@@ -267,6 +256,21 @@ export class Room implements DurableObject {
             url: `https://${host}/api/ice?token=${iceToken.token}`,
           }),
         );
+        break;
+      }
+      case "broadcast": {
+        const userId = attachment.userId;
+        for (const other of this.state.getWebSockets()) {
+          if (other === ws) return;
+          try {
+            other.send(
+              JSON.stringify({ type, userId, payload: payload ?? null }),
+            );
+          } catch {
+            console.warn("Failed to send");
+          }
+        }
+        break;
       }
       default:
         console.debug(

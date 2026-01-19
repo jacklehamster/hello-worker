@@ -36,8 +36,7 @@ export function enterRoom<T extends string, P = any>({
   workerUrl?: URL;
 }): {
   exitRoom: () => void;
-  sendToServer: (type: T, payload?: P) => void;
-  broadcast<T extends string, P extends any>(type: T, payload?: P): void;
+  sendToServer: <P extends any>(type: T, payload?: P) => void;
 } {
   if (!workerUrl) {
     const CDN_WORKER_URL = `https://cdn.jsdelivr.net/npm/@dobuki/hello-worker/dist/signal-room.worker.min.js`;
@@ -116,20 +115,10 @@ export function enterRoom<T extends string, P = any>({
       worker.removeEventListener("message", onWorkerMessage);
       worker.postMessage({ cmd: "exit" } as WorkerCommand);
     },
-    sendToServer: (type: T, payload?: P) => {
+    sendToServer: <P extends any>(type: T, payload?: P) => {
       worker.postMessage({
         cmd: "send",
         toUserId: "server",
-        host,
-        room,
-        type,
-        payload,
-      } as WorkerCommand);
-    },
-    broadcast<T extends string, P extends any>(type: T, payload?: P) {
-      worker.postMessage({
-        cmd: "send",
-        toUserId: "broadcast",
         host,
         room,
         type,

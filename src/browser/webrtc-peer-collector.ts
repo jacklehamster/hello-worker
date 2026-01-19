@@ -1,7 +1,7 @@
 import { IPeer } from "./impl/signal-room";
 import { EnterRoom, enterRoom } from "./signal-room";
 
-export type SigType = "offer" | "answer" | "ice" | "request-ice";
+export type SigType = "offer" | "answer" | "ice" | "request-ice" | "broadcast";
 export type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
 
 type UserState = {
@@ -32,6 +32,7 @@ export function collectPeerConnections({
   workerUrl,
   onRoomReady,
   onRoomClose,
+  onBroadcastMessage,
 }: {
   worldId: string;
   fallbackRtcConfig?: RTCConfiguration;
@@ -52,6 +53,7 @@ export function collectPeerConnections({
     room: string;
     ev: Pick<CloseEvent, "reason" | "code" | "wasClean">;
   }): void;
+  onBroadcastMessage?<P extends any>(payload: P, from: string): void;
 }) {
   const userId = `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
@@ -67,13 +69,9 @@ export function collectPeerConnections({
       room: string;
       host: string;
       exitRoom: () => void;
-      broadcast: <T extends string, P extends any>(type: T, payload: P) => void;
+      broadcast: <P extends any>(payload: P) => void;
     }
   >();
-
-  function broadcast<T extends string, P extends any>(type: T, payload: P) {
-    roomsEntered.forEach((room) => room.broadcast(type, payload));
-  }
 
   async function getRtcConfig(): Promise<RTCConfiguration> {
     if (iceUrl) {
@@ -193,7 +191,7 @@ export function collectPeerConnections({
 
       let icePromiseResolve: undefined | ((url: string) => void);
 
-      const { exitRoom, sendToServer, broadcast } = enterRoom({
+      const { exitRoom, sendToServer } = enterRoom({
         userId,
         worldId,
         room,
@@ -270,7 +268,6 @@ export function collectPeerConnections({
         },
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
-          console.log("ONMESSAGE", type, payload, from);
           const [state] = await getPeer(from);
           const pc = state.pc;
           if (!pc) return;
@@ -326,13 +323,19 @@ export function collectPeerConnections({
             }
             return;
           }
+
+          if (type === "broadcast") {
+            onBroadcastMessage?.(payload, from.userId);
+          }
         },
       });
       roomsEntered.set(`${host}/room/${room}`, {
         exitRoom,
         room,
         host,
-        broadcast,
+        broadcast: (payload) => {
+          sendToServer("broadcast", payload);
+        },
       });
     });
   }
@@ -342,7 +345,9 @@ export function collectPeerConnections({
     enterRoom: enter,
     exitRoom: exit,
     leaveUser,
-    broadcast,
+    broadcast<P extends any>(payload: P) {
+      roomsEntered.forEach((room) => room.broadcast(payload));
+    },
     end() {
       roomsEntered.forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();
