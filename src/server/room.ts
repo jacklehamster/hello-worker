@@ -23,6 +23,12 @@ type Attachment = {
   host: string;
 };
 
+type IncomingMessage = {
+  to?: "server" | string;
+  type?: string;
+  payload?: AnyJson;
+};
+
 function getAttachment(ws: WebSocket): Attachment | null {
   try {
     return ws.deserializeAttachment() as Attachment | null;
@@ -133,64 +139,69 @@ export class Room implements DurableObject {
     }
 
     if (typeof message !== "string") {
-      ws.send(JSON.stringify({ type: "error", error: "binary-not-supported" }));
-      return;
-    }
-
-    let msg: {
-      to?: "server" | string;
-      type?: string;
-      payload?: AnyJson;
-    };
-    try {
-      msg = JSON.parse(message);
-    } catch {
-      ws.send(JSON.stringify({ type: "error", error: "invalid-json" }));
-      return;
-    }
-
-    if (msg.to === "server") {
-      this.handleServerMessage({
-        type: msg.type,
-        payload: msg.payload,
-        ws,
-        attachment,
-      });
-      return;
-    }
-
-    // Generic relay: require msg.to
-    if (typeof msg.to === "string") {
-      const toUserId: string = msg.to;
-
-      const out = {
-        type: msg.type,
-        userId: attachment.userId,
-        payload: msg.payload ?? null,
-      };
-
-      for (const other of this.state.getWebSockets()) {
-        if (getAttachment(other)?.userId === toUserId) {
-          try {
-            other.send(JSON.stringify(out));
-          } catch {
-            console.warn("Failed to send", toUserId);
-          }
-          return;
-        }
-      }
-
-      ws.send(
-        JSON.stringify({
-          type: "error",
-          error: "user-not-found",
-          to: toUserId,
-        }),
+      //  Non-string messages just get broadcasted
+      this.broadcast(message);
+      console.debug(
+        "Broadcasted message from",
+        attachment.userId,
+        "to",
+        `${attachment.worldId}/${attachment.roomId}`,
       );
       return;
     }
 
-    ws.send(JSON.stringify({ type: "error", error: "missing-to" }));
+    let data: IncomingMessage | IncomingMessage[];
+    try {
+      data = JSON.parse(message);
+    } catch {
+      ws.send(JSON.stringify({ type: "error", error: "invalid-json" }));
+      return;
+    }
+    const msgs = Array.isArray(data) ? data : [data];
+    msgs.forEach((msg) => {
+      if (msg.to === "server") {
+        this.handleServerMessage({
+          type: msg.type,
+          payload: msg.payload,
+          ws,
+          attachment,
+        });
+        return;
+      }
+
+      // Generic relay: require msg.to
+      if (typeof msg.to === "string") {
+        const toUserId: string = msg.to;
+
+        const out = {
+          type: msg.type,
+          userId: attachment.userId,
+          payload: msg.payload ?? null,
+        };
+
+        for (const other of this.state.getWebSockets()) {
+          if (getAttachment(other)?.userId === toUserId) {
+            try {
+              other.send(JSON.stringify(out));
+            } catch {
+              console.warn("Failed to send", toUserId);
+            }
+            return;
+          }
+        }
+
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            error: "user-not-found",
+            to: toUserId,
+          }),
+        );
+        return;
+      }
+
+      ws.send(JSON.stringify({ type: "error", error: "missing-to" }));
+    });
   }
 
   webSocketClose(ws: WebSocket) {
@@ -231,6 +242,40 @@ export class Room implements DurableObject {
     );
   }
 
+  broadcast(msg: Parameters<WebSocket["send"]>[0]) {
+    for (const other of this.state.getWebSockets()) {
+      try {
+        other.send(msg);
+      } catch {
+        console.warn("Failed to send");
+      }
+    }
+  }
+
+  private timeout: ReturnType<typeof setTimeout> = 0;
+  private readonly broadcastMessages: {
+    type: string;
+    userId: string;
+    payload: any;
+  }[] = [];
+
+  private queueBroadcast({
+    type,
+    userId,
+    payload,
+  }: {
+    type: string;
+    userId: string;
+    payload: any;
+  }) {
+    clearTimeout(this.timeout);
+    this.broadcastMessages.push({ type, userId, payload });
+    this.timeout = setTimeout(() => {
+      this.broadcast(JSON.stringify(this.broadcastMessages));
+      this.broadcastMessages.length = 0;
+    });
+  }
+
   async handleServerMessage({
     type,
     ws,
@@ -257,16 +302,7 @@ export class Room implements DurableObject {
       }
       case "broadcast": {
         const userId = attachment.userId;
-        for (const other of this.state.getWebSockets()) {
-          if (other === ws) continue;
-          try {
-            other.send(
-              JSON.stringify({ type, userId, payload: payload ?? null }),
-            );
-          } catch {
-            console.warn("Failed to send");
-          }
-        }
+        this.queueBroadcast({ type, userId, payload });
         break;
       }
       default:

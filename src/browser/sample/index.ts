@@ -84,7 +84,7 @@ export function testWebRTC(websocketBroadcast: boolean) {
 
   const session = enterWorld({
     logLine,
-    worldId: "webRTC-test",
+    worldId: websocketBroadcast ? "broadcast-test" : "webRTC-test",
     workerUrl: new URL("../signal-room.worker.js", import.meta.url),
     dataChannelOptions: {
       ordered: false,
@@ -141,7 +141,6 @@ export function testWebRTC(websocketBroadcast: boolean) {
       statusEl.textContent = "🟢 connected";
     });
   session.addMessageListener((data) => {
-    console.log(data);
     try {
       const { x, y } = JSON.parse(String(data));
       if (typeof x === "number" && typeof y === "number") {

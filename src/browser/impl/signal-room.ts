@@ -158,7 +158,9 @@ export function enterRoom<T extends string, P = any>(params: {
   connect();
 
   return {
-    sendToServer: (type, payload) => send(type, "server", payload),
+    sendToServer(type, payload) {
+      send(type, "server", payload);
+    },
     exitRoom: () => {
       exited = true;
       clearTimeout(timeoutId);
