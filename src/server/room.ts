@@ -138,7 +138,7 @@ export class Room implements DurableObject {
     }
 
     let msg: {
-      to?: "server" | "broadcast" | string;
+      to?: "server" | string;
       type?: string;
       payload?: AnyJson;
     };
@@ -161,7 +161,7 @@ export class Room implements DurableObject {
 
     // Generic relay: require msg.to
     if (typeof msg.to === "string") {
-      const toUserId: "broadcast" | string = msg.to;
+      const toUserId: string = msg.to;
 
       const out = {
         type: msg.type,
@@ -170,10 +170,7 @@ export class Room implements DurableObject {
       };
 
       for (const other of this.state.getWebSockets()) {
-        if (
-          toUserId === "broadcast" ||
-          getAttachment(other)?.userId === toUserId
-        ) {
+        if (getAttachment(other)?.userId === toUserId) {
           try {
             other.send(JSON.stringify(out));
           } catch {
@@ -261,7 +258,7 @@ export class Room implements DurableObject {
       case "broadcast": {
         const userId = attachment.userId;
         for (const other of this.state.getWebSockets()) {
-          if (other === ws) return;
+          if (other === ws) continue;
           try {
             other.send(
               JSON.stringify({ type, userId, payload: payload ?? null }),
