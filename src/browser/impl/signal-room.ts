@@ -3,6 +3,8 @@ export interface IPeer<T extends string = string, P = any> {
   receive(type: T, payload: P): boolean;
 }
 
+type OutMessage = { type: string; to: string; payload: any };
+
 /**
  * enterRoom connects to the signaling room via WebSocket.
  */
@@ -46,12 +48,20 @@ export function enterRoom<T extends string, P = any>(params: {
   )}`;
 
   // Helper for sending (uses the current ws instance)
+  const accumulatedMessages: OutMessage[] = [];
+  let timeout: ReturnType<typeof setTimeout> = 0;
   function send(type: string, to: "server" | string, payload?: any) {
     if (!ws) return false;
     if (exited || ws.readyState !== WebSocket.OPEN) return false;
-    const obj = { type, to, payload };
-    ws.send(JSON.stringify(obj));
+    const obj: OutMessage = { type, to, payload };
+    accumulatedMessages.push(obj);
+    // ws.send(JSON.stringify(obj));
     logLine?.("👤 ➡️ 🖥️", obj);
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      ws.send(JSON.stringify(accumulatedMessages));
+      accumulatedMessages.length = 0;
+    });
     return true;
   }
 
