@@ -28,7 +28,7 @@
     <button id="clear-log">Clear log</button>
     <button id="welcome-button" disabled>welcome</button>
     <button id="webrtc-button">test webRTC</button>
-    <button id="broadcast-button">test webSocket broadcast</button>
+    <button id="broadcast-button">test broadcast</button>
   </div>
 
   <div>
@@ -69,6 +69,8 @@
     function connect() {
       if (location.hash === "#webrtc") {
         setWebRTC();
+      } else if (location.hash === "#broadcast") {
+        setWebsocketBroadcast();
       } else {
         setupWelcome();
       }
@@ -98,7 +100,7 @@
       onExit?.();
       setWebRTC();
     };
-    document.getElementById("broadcast-button").onClick = () => {
+    document.getElementById("broadcast-button").onclick = () => {
       onExit?.();
       setWebsocketBroadcast();
     };
