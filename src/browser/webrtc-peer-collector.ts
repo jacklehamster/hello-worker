@@ -85,7 +85,7 @@ export function collectPeerConnections({
         console.warn("Using fallback rtcConfig:", e);
       }
     }
-    return fallbackRtcConfig;
+    return rtcConfig;
   }
 
   async function setupPC(state: UserState) {

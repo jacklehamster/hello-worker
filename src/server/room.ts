@@ -91,6 +91,7 @@ export class Room implements DurableObject {
           JSON.stringify({
             type: "ice-server",
             url: `https://${host}/api/ice?token=${iceToken.token}`,
+            expiration: iceToken.expiration,
           }),
         );
       } else {
@@ -100,6 +101,7 @@ export class Room implements DurableObject {
               {
                 type: "ice-server",
                 url: `https://${host}/api/ice?token=${iceToken.token}`,
+                expiration: iceToken.expiration,
               },
               {
                 type: "peer-joined",
