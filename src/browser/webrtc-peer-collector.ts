@@ -177,7 +177,7 @@ export function collectPeerConnections({
           clearTimeout(state.expirationTimeout);
           state.expirationTimeout = 0;
         }
-        if (!state.pc) {
+        if (!state.pc || state.pc?.signalingState === "closed") {
           await setupPC(state);
         }
         state.peer = peer;
