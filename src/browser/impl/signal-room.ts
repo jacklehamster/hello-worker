@@ -160,7 +160,7 @@ export function enterRoom<T extends string, P = any>(params: {
         peers.set(pUserId, newPeer);
         joined.push(newPeer);
       }
-      updatedPeerSet.add(userId);
+      updatedPeerSet.add(pUserId);
     });
 
     for (const userId of peers.keys()) {
