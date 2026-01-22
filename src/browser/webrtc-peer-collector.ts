@@ -189,7 +189,6 @@ export function collectPeerConnections({
         const pc = state.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
-        logLine("debug", "making offer");
         user.receive("offer", pc?.localDescription?.toJSON()!);
       }
 
@@ -241,7 +240,6 @@ export function collectPeerConnections({
               logLine("👤ℹ️", "no pc: " + user.userId);
               return;
             }
-            logLine("👤ℹ️", "user joined " + user.userId);
 
             async function restart() {
               const state = users.get(user.userId);

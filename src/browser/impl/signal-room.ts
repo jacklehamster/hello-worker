@@ -147,12 +147,9 @@ export function enterRoom<T extends string, P = any>(params: {
     const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
 
-    console.log(userId, "peers", peers.keys(), "<= userId", updatedUsers);
     updatedUsers.forEach(({ userId: pUserId }) => {
-      console.log(pUserId, userId, peers);
       if (pUserId === userId) return;
       if (!peers.has(pUserId)) {
-        console.log("joined peer", pUserId);
         const newPeer = {
           userId: pUserId,
           receive: (t: T, p: P) => send(t, pUserId, p),
@@ -169,7 +166,6 @@ export function enterRoom<T extends string, P = any>(params: {
         left.push({ userId: pUserId });
       }
     }
-    console.log("Peers updated", joined, "|", left, "||", updatedUsers);
     //  Notify peer joined first then peer left. (avoid disconnect in case the peer leaving / joining is on the same user).
     if (joined.length) params.onPeerJoined(joined);
     if (left.length) params.onPeerLeft(left);
