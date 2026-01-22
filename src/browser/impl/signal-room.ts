@@ -151,7 +151,7 @@ export function enterRoom<T extends string, P = any>(params: {
     updatedUsers.forEach(({ userId: pUserId }) => {
       console.log(pUserId, userId, peers);
       if (pUserId === userId) return;
-      if (!peers.has(userId)) {
+      if (!peers.has(pUserId)) {
         console.log("joined peer", userId);
         const newPeer = {
           userId: pUserId,
