@@ -241,6 +241,7 @@ export function collectPeerConnections({
               logLine("👤ℹ️", "no pc: " + user.userId);
               return;
             }
+            logLine("👤ℹ️", "user joined " + user.userId);
 
             async function restart() {
               const state = users.get(user.userId);
