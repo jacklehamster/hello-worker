@@ -165,7 +165,6 @@ export function collectPeerConnections({
             pendingRemoteIce: [],
             peer,
           };
-          users.set(peer.userId, newState);
 
           await setupPC(newState);
           state = newState;
@@ -237,7 +236,6 @@ export function collectPeerConnections({
             if (!pc) return;
 
             async function restart() {
-              await requestIce();
               const state = users.get(user.userId);
               if (state) {
                 state.pc = undefined;

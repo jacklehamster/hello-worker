@@ -77,7 +77,7 @@ export function enterWorld<D extends string | Uint8Array>({
     };
     const onmessage = ({ data }: MessageEvent) => {
       conveyMessage(data, userId);
-      logLine("💬", { event: "dc-message", userId, data });
+      // logLine("💬", { event: "dc-message", userId, data });
     };
     dc.addEventListener("message", onmessage);
     dc.addEventListener("close", () => {
