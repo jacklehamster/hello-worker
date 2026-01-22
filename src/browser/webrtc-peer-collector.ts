@@ -231,9 +231,15 @@ export function collectPeerConnections({
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
           joiningUsers.forEach(async (user) => {
             const [state, isNewPeer] = await getPeer(user);
-            if (!isNewPeer) return;
+            if (!isNewPeer) {
+              logLine("👤ℹ️", "not a new peer: " + user.userId);
+              return;
+            }
             const pc = state.pc;
-            if (!pc) return;
+            if (!pc) {
+              logLine("👤ℹ️", "no pc: " + user.userId);
+              return;
+            }
 
             async function restart() {
               const state = users.get(user.userId);
@@ -247,7 +253,7 @@ export function collectPeerConnections({
                   restart,
                 });
                 await new Promise((resolve) => setTimeout(resolve, 3000));
-                makeOffer(user);
+                await makeOffer(user);
               }
             }
 
@@ -257,7 +263,7 @@ export function collectPeerConnections({
               initiator: true,
               restart,
             });
-            makeOffer(user);
+            await makeOffer(user);
           });
         },
 
