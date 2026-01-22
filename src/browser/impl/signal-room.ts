@@ -163,10 +163,10 @@ export function enterRoom<T extends string, P = any>(params: {
       updatedPeerSet.add(pUserId);
     });
 
-    for (const userId of peers.keys()) {
-      if (!updatedPeerSet.has(userId)) {
-        peers.delete(userId);
-        left.push({ userId });
+    for (const pUserId of peers.keys()) {
+      if (!updatedPeerSet.has(pUserId)) {
+        peers.delete(pUserId);
+        left.push({ userId: pUserId });
       }
     }
     console.log("Peers updated", joined, "|", left, "||", updatedUsers);
