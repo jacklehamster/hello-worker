@@ -157,7 +157,7 @@ export function enterRoom<T extends string, P = any>(params: {
           userId: pUserId,
           receive: (t: T, p: P) => send(t, pUserId, p),
         };
-        peers.set(userId, newPeer);
+        peers.set(pUserId, newPeer);
         joined.push(newPeer);
       }
       updatedPeerSet.add(userId);
