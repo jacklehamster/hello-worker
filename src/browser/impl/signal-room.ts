@@ -152,7 +152,7 @@ export function enterRoom<T extends string, P = any>(params: {
       console.log(pUserId, userId, peers);
       if (pUserId === userId) return;
       if (!peers.has(pUserId)) {
-        console.log("joined peer", userId);
+        console.log("joined peer", pUserId);
         const newPeer = {
           userId: pUserId,
           receive: (t: T, p: P) => send(t, pUserId, p),
