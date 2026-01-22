@@ -52,8 +52,14 @@ export function enterRoom<T extends string, P = any>(params: {
   const accumulatedMessages: OutMessage[] = [];
   let timeout: ReturnType<typeof setTimeout> = 0;
   function send(type: string, to: "server" | string, payload?: any) {
-    if (!ws) return false;
-    if (exited || ws.readyState !== WebSocket.OPEN) return false;
+    if (!ws) {
+      logLine?.("👤 ➡️ ❌", "no ws available");
+      return false;
+    }
+    if (exited || ws.readyState !== WebSocket.OPEN) {
+      logLine?.("👤 ➡️ ❌", "Not in opened state: " + ws.readyState);
+      return false;
+    }
     const obj: OutMessage = { type, to, payload };
     accumulatedMessages.push(obj);
     // ws.send(JSON.stringify(obj));
