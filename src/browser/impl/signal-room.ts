@@ -147,10 +147,12 @@ export function enterRoom<T extends string, P = any>(params: {
     const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
 
-    console.log("peers", peers.keys(), "<= userId", updatedUsers);
+    console.log(userId, "peers", peers.keys(), "<= userId", updatedUsers);
     updatedUsers.forEach(({ userId: pUserId }) => {
+      console.log(pUserId, userId, peers);
       if (pUserId === userId) return;
       if (!peers.has(userId)) {
+        console.log("joined peer", userId);
         const newPeer = {
           userId: pUserId,
           receive: (t: T, p: P) => send(t, pUserId, p),
