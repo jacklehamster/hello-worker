@@ -189,6 +189,7 @@ export function collectPeerConnections({
         const pc = state.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
+        logLine("debug", "making offer");
         user.receive("offer", pc?.localDescription?.toJSON()!);
       }
 
