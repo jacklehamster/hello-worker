@@ -147,6 +147,7 @@ export function enterRoom<T extends string, P = any>(params: {
     const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
 
+    console.log("peers", peers.keys(), "<= userId", updatedUsers);
     updatedUsers.forEach(({ userId: pUserId }) => {
       if (pUserId === userId) return;
       if (!peers.has(userId)) {
