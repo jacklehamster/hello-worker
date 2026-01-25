@@ -11,7 +11,7 @@ type UserListener = (
   users: string[],
 ) => void;
 
-export function enterWorld<D extends string | Uint8Array>({
+export function enterWorld<D extends string | ArrayBuffer>({
   worldId,
   logLine = console.debug,
   enterRoomFunction = enterRoom,
