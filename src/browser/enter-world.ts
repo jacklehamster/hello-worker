@@ -12,8 +12,8 @@ type UserListener = (
 ) => void;
 
 export function enterWorld<
-  S extends string | ArrayBufferView,
-  R extends string | ArrayBufferLike,
+  S extends string | ArrayBufferView = string | ArrayBufferView,
+  R extends string | ArrayBufferLike = string | ArrayBufferLike,
 >({
   worldId,
   logLine = console.debug,
