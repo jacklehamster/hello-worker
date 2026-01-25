@@ -12,7 +12,8 @@ type UserListener = (
 ) => void;
 
 export function enterWorld<
-  D extends string | ArrayBufferLike | ArrayBufferView,
+  S extends string | ArrayBufferView,
+  R extends string | ArrayBufferLike,
 >({
   worldId,
   logLine = console.debug,
@@ -38,7 +39,7 @@ export function enterWorld<
 }) {
   const userIds: string[] = [];
 
-  const messagesListeners = new Set<(data: any, from: string) => void>();
+  const messagesListeners = new Set<(data: R, from: string) => void>();
 
   function createDataChannel(
     pc: RTCPeerConnection,
@@ -126,7 +127,7 @@ export function enterWorld<
     },
   });
 
-  function send(data: D, userId?: string) {
+  function send(data: S, userId?: string) {
     dataChannels.forEach((dataChannel, pUserId) => {
       if (userId && pUserId !== userId) return;
       if (dataChannel.readyState === "open") {
@@ -135,11 +136,11 @@ export function enterWorld<
     });
   }
 
-  function removeMessageListener(listener: (data: D, from: string) => void) {
+  function removeMessageListener(listener: (data: R, from: string) => void) {
     messagesListeners.delete(listener);
   }
 
-  function addMessageListener(listener: (data: D, from: string) => void) {
+  function addMessageListener(listener: (data: R, from: string) => void) {
     messagesListeners.add(listener);
     return () => {
       removeMessageListener(listener);
