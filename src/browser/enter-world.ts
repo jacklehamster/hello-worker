@@ -11,7 +11,7 @@ type UserListener = (
   users: string[],
 ) => void;
 
-export function enterWorld<D extends string | ArrayBuffer>({
+export function enterWorld<D extends string | ArrayBufferLike>({
   worldId,
   logLine = console.debug,
   enterRoomFunction = enterRoom,
