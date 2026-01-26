@@ -20,6 +20,7 @@ type UserState = {
 const DEFAULT_ENTER_ROOM = enterRoom;
 
 export function collectPeerConnections({
+  userId: passedUserId,
   worldId,
   receivePeerConnection,
   peerlessUserExpiration = 5000,
@@ -27,13 +28,14 @@ export function collectPeerConnections({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   },
   enterRoomFunction: enterRoom = DEFAULT_ENTER_ROOM,
-  logLine = console.debug,
+  logLine,
   onLeaveUser,
   workerUrl,
   onRoomReady,
   onRoomClose,
   onBroadcastMessage,
 }: {
+  userId?: string;
   worldId: string;
   fallbackRtcConfig?: RTCConfiguration;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
@@ -55,7 +57,7 @@ export function collectPeerConnections({
   }): void;
   onBroadcastMessage?<P extends any>(payload: P, from: string): void;
 }) {
-  const userId = `user-${crypto.randomUUID()}`;
+  const userId = passedUserId ?? `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
   let iceUrl: { url: string; expiration: number } | undefined = undefined;
   let rtcConfig: RTCConfiguration & { timestamp: number } = {
@@ -108,7 +110,7 @@ export function collectPeerConnections({
       try {
         await state.pc.addIceCandidate(ice);
       } catch (e) {
-        logLine("⚠️ ERROR", {
+        logLine?.("⚠️ ERROR", {
           error: "add-ice-failed",
           userId: state.userId,
           detail: String(e),
@@ -145,7 +147,7 @@ export function collectPeerConnections({
         };
 
         state.pc.onconnectionstatechange = () => {
-          logLine("💬", {
+          logLine?.("💬", {
             event: "pc-state",
             userId: state.userId,
             state: state.pc?.connectionState,
@@ -232,12 +234,12 @@ export function collectPeerConnections({
           joiningUsers.forEach(async (user) => {
             const [state, isNewPeer] = await getPeer(user);
             if (!isNewPeer) {
-              logLine("👤ℹ️", "not a new peer: " + user.userId);
+              logLine?.("👤ℹ️", "not a new peer: " + user.userId);
               return;
             }
             const pc = state.pc;
             if (!pc) {
-              logLine("👤ℹ️", "no pc: " + user.userId);
+              logLine?.("👤ℹ️", "no pc: " + user.userId);
               return;
             }
 
@@ -331,7 +333,7 @@ export function collectPeerConnections({
             try {
               await pc.addIceCandidate(ice);
             } catch (e) {
-              logLine("⚠️ ERROR", {
+              logLine?.("⚠️ ERROR", {
                 error: "add-ice-failed",
                 userId: state.userId,
                 detail: String(e),

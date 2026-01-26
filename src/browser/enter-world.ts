@@ -15,8 +15,9 @@ export function enterWorld<
   S extends string | ArrayBufferView = string | ArrayBufferView,
   R extends string | ArrayBufferLike = string | ArrayBufferLike,
 >({
+  userId: passedUserId,
   worldId,
-  logLine = console.debug,
+  logLine,
   enterRoomFunction = enterRoom,
   peerlessUserExpiration,
   workerUrl,
@@ -24,6 +25,7 @@ export function enterWorld<
   onRoomClose,
   dataChannelOptions,
 }: {
+  userId?: string;
   worldId: string;
   logLine?: (direction: string, obj?: any) => void;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
@@ -74,7 +76,7 @@ export function enterWorld<
     restart?: () => void,
   ) {
     dc.onopen = () => {
-      logLine("💬", { event: "dc-open", userId });
+      logLine?.("💬", { event: "dc-open", userId });
       userIds.push(userId);
       userListeners.forEach((listener) => listener(userId, "join", userIds));
     };
@@ -84,13 +86,13 @@ export function enterWorld<
     };
     dc.addEventListener("message", onmessage);
     dc.addEventListener("close", () => {
-      logLine("💬", { event: "dc-close", userId });
+      logLine?.("💬", { event: "dc-close", userId });
       userIds.splice(userIds.indexOf(userId), 1);
       userListeners.forEach((listener) => listener(userId, "leave", userIds));
       dc.removeEventListener("message", onmessage);
       restart?.();
     });
-    dc.onerror = () => logLine("⚠️ ERROR", { error: "dc-error", userId });
+    dc.onerror = () => logLine?.("⚠️ ERROR", { error: "dc-error", userId });
   }
 
   const dataChannels = new Map<string, RTCDataChannel>();
@@ -104,6 +106,7 @@ export function enterWorld<
     broadcast,
     end: endPeerCollection,
   } = collectPeerConnections({
+    userId: passedUserId,
     worldId,
     enterRoomFunction,
     logLine,
@@ -123,7 +126,7 @@ export function enterWorld<
     },
     onBroadcastMessage(payload, from) {
       conveyMessage(payload, from);
-      logLine("📢", { event: "broadcast", userId, data: payload });
+      logLine?.("📢", { event: "broadcast", userId, data: payload });
     },
   });
 
