@@ -75,7 +75,9 @@ export function collectPeerConnections({
     }
   >();
 
-  async function getRtcConfig(iceUrl: string): Promise<RTCConfiguration> {
+  async function getRtcConfig(
+    iceUrl: string,
+  ): Promise<RTCConfiguration & { timestamp: number }> {
     if (iceUrl) {
       try {
         const r = await fetch(iceUrl);
@@ -131,15 +133,16 @@ export function collectPeerConnections({
   function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>(async (resolve, reject) => {
       async function setupPC(state: UserState) {
-        const ice =
-          !iceUrl || iceUrl.expiration - Date.now() < 2000
-            ? await requestIce()
-            : iceUrl;
-        state.pc = new RTCPeerConnection(
-          Date.now() - (rtcConfig?.timestamp ?? 0) < 10000
-            ? rtcConfig
-            : await getRtcConfig(ice.url),
-        );
+        const now = Date.now();
+        if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
+          console.log("ICE expiration", iceUrl?.expiration, "-", now);
+          const ice =
+            !iceUrl || iceUrl.expiration - now < 2000
+              ? await requestIce()
+              : iceUrl;
+          rtcConfig = await getRtcConfig(ice.url);
+        }
+        state.pc = new RTCPeerConnection(rtcConfig);
         // Send local ICE candidates to this peer
         state.pc.onicecandidate = (ev) => {
           if (!ev.candidate) return;
