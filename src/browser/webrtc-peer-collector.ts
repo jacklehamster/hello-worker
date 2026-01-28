@@ -15,6 +15,7 @@ type UserState = {
   peer: IPeer<SigType, SigPayload>;
 
   expirationTimeout?: number;
+  initiateForThisUser: boolean;
   close: () => void;
 };
 
@@ -181,10 +182,12 @@ export function collectPeerConnections({
       ): Promise<UserState> {
         let state = users.get(peer.userId);
         if (!state || forceReset) {
+          const initiateForThisUser = !state || state.initiateForThisUser;
           const newState: UserState = {
             userId: peer.userId,
             pendingRemoteIce: [],
             peer,
+            initiateForThisUser,
             close() {
               console.log("Closing state", userId, peer.userId);
               this.pc?.close();
@@ -262,15 +265,19 @@ export function collectPeerConnections({
               logLine?.("👤ℹ️", "no pc: " + user.userId);
               return;
             }
+            const initiateForThisUser = state.initiateForThisUser;
 
-            console.log("User joined", user);
             receivePeerConnection({
               pc,
               userId: user.userId,
-              initiator: true,
-              restart: () => restartInitiator(user),
+              initiator: initiateForThisUser,
+              restart: initiateForThisUser
+                ? () => restartInitiator(user)
+                : () => state.close(),
             });
-            await makeOffer(user);
+            if (initiateForThisUser) {
+              await makeOffer(user);
+            }
           });
         },
 
