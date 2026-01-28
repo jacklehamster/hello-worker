@@ -64,7 +64,7 @@ export function testWelcome() {
       }
     },
     logLine,
-    workerUrl: new URL("../signal-room.worker.js", import.meta.url),
+    workerUrl: new URL("../signal/signal-room.worker.js", import.meta.url),
   });
   return () => {
     statusEl.textContent = "🔴 closed";
@@ -88,7 +88,7 @@ export function testWebRTC(websocketBroadcast: boolean) {
   const session = enterWorld({
     logLine,
     worldId: websocketBroadcast ? "broadcast-test" : "webRTC-test",
-    workerUrl: new URL("../signal-room.worker.js", import.meta.url),
+    workerUrl: new URL("../signal/signal-room.worker.js", import.meta.url),
     dataChannelOptions: {
       ordered: false, //  not ordered, but goes faster
     },
