@@ -119,8 +119,6 @@ export function enterRoom<T extends string, P = any>(params: {
         const jitter = Math.random() * 1000;
         const delay = backoff + jitter;
 
-        updatePeers([{ userId }]);
-
         logLine?.("🔄 RECONNECTING", {
           attempt: retryCount + 1,
           delayMs: Math.round(delay),
