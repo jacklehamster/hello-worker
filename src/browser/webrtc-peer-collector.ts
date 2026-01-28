@@ -133,7 +133,7 @@ export function collectPeerConnections({
 
   function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>(async (resolve, reject) => {
-      async function restart(user: IPeer) {
+      async function restartInitiator(user: IPeer) {
         const state = users.get(user.userId);
         if (!state) return; //  user left
         state.close();
@@ -142,7 +142,7 @@ export function collectPeerConnections({
           pc,
           userId: user.userId,
           initiator: true,
-          restart: () => restart(user),
+          restart: () => restartInitiator(user),
         });
         await new Promise((resolve) => setTimeout(resolve, 3000));
         await makeOffer(user);
@@ -263,11 +263,12 @@ export function collectPeerConnections({
               return;
             }
 
+            console.log("User joined", user);
             receivePeerConnection({
               pc,
               userId: user.userId,
               initiator: true,
-              restart: () => restart(user),
+              restart: () => restartInitiator(user),
             });
             await makeOffer(user);
           });
