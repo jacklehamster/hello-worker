@@ -135,7 +135,6 @@ export function collectPeerConnections({
       async function setupPC(state: UserState) {
         const now = Date.now();
         if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
-          console.log("ICE expiration", iceUrl?.expiration, "-", now);
           const ice =
             !iceUrl || iceUrl.expiration - now < 2000
               ? await requestIce()
