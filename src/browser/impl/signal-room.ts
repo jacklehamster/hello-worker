@@ -56,15 +56,15 @@ export function enterRoom<T extends string, P = any>(params: {
       logLine?.("👤 ➡️ ❌", "no ws available");
       return false;
     }
-    if (exited || ws.readyState !== WebSocket.OPEN) {
-      logLine?.("👤 ➡️ ❌", "Not in opened state: " + ws.readyState);
-      return false;
-    }
     const obj: OutMessage = { type, to, payload };
     accumulatedMessages.push(obj);
     // ws.send(JSON.stringify(obj));
     logLine?.("👤 ➡️ 🖥️", obj);
     clearTimeout(timeout);
+    if (exited || ws.readyState !== WebSocket.OPEN) {
+      logLine?.("👤 ➡️ ❌", "Not in opened state: " + ws.readyState);
+      return false;
+    }
     timeout = setTimeout(() => {
       ws.send(JSON.stringify(accumulatedMessages));
       accumulatedMessages.length = 0;
@@ -119,7 +119,7 @@ export function enterRoom<T extends string, P = any>(params: {
         const jitter = Math.random() * 1000;
         const delay = backoff + jitter;
 
-        updatePeers([]);
+        updatePeers([{ userId }]);
 
         logLine?.("🔄 RECONNECTING", {
           attempt: retryCount + 1,
@@ -145,6 +145,7 @@ export function enterRoom<T extends string, P = any>(params: {
 
   // Helper for peer tracking (logic from your original code)
   function updatePeers(updatedUsers: { userId: string }[]) {
+    console.log(updatedUsers, "U");
     const joined: IPeer<T, P>[] = [];
     const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
