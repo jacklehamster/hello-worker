@@ -15,6 +15,8 @@ type UserState = {
   peer: IPeer<SigType, SigPayload>;
 
   expirationTimeout?: number;
+  close: () => void;
+  destroy: () => void;
 };
 
 const DEFAULT_ENTER_ROOM = enterRoom;
@@ -99,6 +101,7 @@ export function collectPeerConnections({
     try {
       p.pc?.close();
     } catch {}
+    p.destroy();
     users.delete(userId);
   }
 
@@ -132,6 +135,22 @@ export function collectPeerConnections({
 
   function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>(async (resolve, reject) => {
+      async function restart(user: IPeer) {
+        const state = users.get(user.userId);
+        if (state) {
+          state.close();
+          const pc = await setupPC(state);
+          receivePeerConnection({
+            pc,
+            userId: user.userId,
+            initiator: true,
+            restart: () => restart(user),
+          });
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          await makeOffer(user);
+        }
+      }
+
       async function setupPC(state: UserState) {
         const now = Date.now();
         if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
@@ -155,6 +174,7 @@ export function collectPeerConnections({
             state: state.pc?.connectionState,
           });
         };
+
         return state.pc;
       }
 
@@ -168,7 +188,23 @@ export function collectPeerConnections({
             userId: peer.userId,
             pendingRemoteIce: [],
             peer,
+            close() {
+              this.pc?.close();
+              this.pc = undefined;
+            },
+            destroy() {
+              document.removeEventListener("visibilitychange", restartState);
+            },
           };
+          //  Ugly hack
+          const restartState = () => {
+            if (document.visibilityState === "hidden") {
+              close();
+            } else {
+              setupPC(newState);
+            }
+          };
+          document.addEventListener("visibilitychange", restartState);
 
           await setupPC(newState);
           state = newState;
@@ -240,27 +276,11 @@ export function collectPeerConnections({
               return;
             }
 
-            async function restart() {
-              const state = users.get(user.userId);
-              if (state) {
-                state.pc = undefined;
-                const pc = await setupPC(state);
-                receivePeerConnection({
-                  pc,
-                  userId: user.userId,
-                  initiator: true,
-                  restart,
-                });
-                await new Promise((resolve) => setTimeout(resolve, 3000));
-                await makeOffer(user);
-              }
-            }
-
             receivePeerConnection({
               pc,
               userId: user.userId,
               initiator: true,
-              restart,
+              restart: () => restart(user),
             });
             await makeOffer(user);
           });
@@ -294,7 +314,7 @@ export function collectPeerConnections({
               initiator: false,
               restart() {
                 //  reset PC
-                state.pc = undefined;
+                state.close();
               },
             });
             // Responder: set remote offer
