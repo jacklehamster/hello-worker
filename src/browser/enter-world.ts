@@ -39,7 +39,7 @@ export function enterWorld<
   }): void;
   dataChannelOptions?: RTCDataChannelInit;
 }) {
-  const userIds: string[] = [];
+  const userIds = new Set<string>();
 
   const messagesListeners = new Set<(data: R, from: string) => void>();
 
@@ -77,8 +77,10 @@ export function enterWorld<
   ) {
     dc.onopen = () => {
       logLine?.("💬", { event: "dc-open", userId });
-      userIds.push(userId);
-      userListeners.forEach((listener) => listener(userId, "join", userIds));
+      userIds.add(userId);
+      userListeners.forEach((listener) =>
+        listener(userId, "join", [...userIds]),
+      );
     };
     const onmessage = ({ data }: MessageEvent) => {
       conveyMessage(data, userId);
@@ -87,8 +89,10 @@ export function enterWorld<
     dc.addEventListener("message", onmessage);
     dc.addEventListener("close", () => {
       logLine?.("💬", { event: "dc-close", userId });
-      userIds.splice(userIds.indexOf(userId), 1);
-      userListeners.forEach((listener) => listener(userId, "leave", userIds));
+      userIds.delete(userId);
+      userListeners.forEach((listener) =>
+        listener(userId, "leave", [...userIds]),
+      );
       dc.removeEventListener("message", onmessage);
       restart?.();
     });
@@ -168,7 +172,7 @@ export function enterWorld<
     enterRoom,
     exitRoom,
     leaveUser,
-    getUsers: () => userIds,
+    getUsers: () => [...userIds],
     addMessageListener,
     removeMessageListener,
     addUserListener,
@@ -182,7 +186,7 @@ export function enterWorld<
       dataChannels.clear();
       endPeerCollection();
       userListeners.clear();
-      userIds.length = 0;
+      userIds.clear();
     },
   };
 }
