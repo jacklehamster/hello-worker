@@ -247,7 +247,7 @@ export function collectPeerConnections({
           console.error("onError");
           reject();
         },
-        onClose(ev: CloseEvent) {
+        onClose(ev: Pick<CloseEvent, "reason" | "code" | "wasClean">) {
           onRoomClose?.({ room, host, ev });
         },
 

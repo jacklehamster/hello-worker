@@ -16,7 +16,7 @@
   "scripts": {
     "dev": "wrangler dev src/index.ts --config wrangler.dev.toml",
     "deploy": "wrangler deploy",
-    "build:sample": "bun build src/browser/sample/index.ts src/browser/signal-room.worker.ts --target browser --format esm --outdir public --minify --sourcemap",
+    "build:sample": "bun build src/browser/sample/index.ts src/browser/signal/signal-room.worker.ts --target browser --format esm --outdir public --minify --sourcemap",
     "build:types": "tsc -p tsconfig.json",
     "build:main": "bun build src/browser/*.* --target browser --format esm --outdir dist --minify --sourcemap",
     "build": "bun i && bun run build:main && bun run build:sample && bun run build:types",
