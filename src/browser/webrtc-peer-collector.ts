@@ -201,7 +201,7 @@ export function collectPeerConnections({
             if (document.visibilityState === "hidden") {
               close();
             } else {
-              setupPC(newState);
+              restart(peer);
             }
           };
           document.addEventListener("visibilitychange", restartState);
