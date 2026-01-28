@@ -182,12 +182,11 @@ export function collectPeerConnections({
       ): Promise<UserState> {
         let state = users.get(peer.userId);
         if (!state || forceReset) {
-          const initiateForThisUser = !state || state.initiateForThisUser;
           const newState: UserState = {
             userId: peer.userId,
             pendingRemoteIce: [],
             peer,
-            initiateForThisUser,
+            initiateForThisUser: state?.initiateForThisUser ?? false,
             close() {
               console.log("Closing state", userId, peer.userId);
               this.pc?.close();
@@ -259,23 +258,26 @@ export function collectPeerConnections({
         // Existing peers initiate to the newcomer
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
           joiningUsers.forEach(async (user) => {
+            const hadState = users.has(user.userId);
             const state = await getPeer(user, true);
+            if (!hadState) {
+              state.initiateForThisUser = true;
+            }
             const pc = state.pc;
             if (!pc) {
               logLine?.("👤ℹ️", "no pc: " + user.userId);
               return;
             }
-            const initiateForThisUser = state.initiateForThisUser;
 
             receivePeerConnection({
               pc,
               userId: user.userId,
-              initiator: initiateForThisUser,
-              restart: initiateForThisUser
+              initiator: state.initiateForThisUser,
+              restart: state.initiateForThisUser
                 ? () => restartInitiator(user)
                 : () => state.close(),
             });
-            if (initiateForThisUser) {
+            if (state.initiateForThisUser) {
               await makeOffer(user);
             }
           });
@@ -303,6 +305,7 @@ export function collectPeerConnections({
           if (!pc) return;
 
           if (type === "offer") {
+            state.initiateForThisUser = false;
             receivePeerConnection({
               pc,
               userId: from.userId,
