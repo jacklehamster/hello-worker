@@ -160,10 +160,10 @@ export function collectPeerConnections({
 
       async function getPeer(
         peer: IPeer<SigType, SigPayload>,
-      ): Promise<[UserState, boolean]> {
+        forceReset?: boolean,
+      ): Promise<UserState> {
         let state = users.get(peer.userId);
-        let isNewPeer = false;
-        if (!state) {
+        if (!state || forceReset) {
           const newState: UserState = {
             userId: peer.userId,
             pendingRemoteIce: [],
@@ -175,7 +175,6 @@ export function collectPeerConnections({
 
           //  New user
           users.set(state.userId, state);
-          isNewPeer = true;
         } else if (state) {
           clearTimeout(state.expirationTimeout);
           state.expirationTimeout = 0;
@@ -184,12 +183,12 @@ export function collectPeerConnections({
           await setupPC(state);
         }
         state.peer = peer;
-        return [state, isNewPeer];
+        return state;
       }
 
       async function makeOffer(user: IPeer) {
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
-        const [state] = await getPeer(user);
+        const state = await getPeer(user);
         const pc = state.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
@@ -234,11 +233,7 @@ export function collectPeerConnections({
         // Existing peers initiate to the newcomer
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
           joiningUsers.forEach(async (user) => {
-            const [state, isNewPeer] = await getPeer(user);
-            if (!isNewPeer) {
-              logLine?.("👤ℹ️", "not a new peer: " + user.userId);
-              return;
-            }
+            const state = await getPeer(user, true);
             const pc = state.pc;
             if (!pc) {
               logLine?.("👤ℹ️", "no pc: " + user.userId);
@@ -288,7 +283,7 @@ export function collectPeerConnections({
         },
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
-          const [state] = await getPeer(from);
+          const state = await getPeer(from);
           const pc = state.pc;
           if (!pc) return;
 
