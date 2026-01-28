@@ -145,7 +145,6 @@ export function enterRoom<T extends string, P = any>(params: {
 
   // Helper for peer tracking (logic from your original code)
   function updatePeers(updatedUsers: { userId: string }[]) {
-    console.log(updatedUsers, "U");
     const joined: IPeer<T, P>[] = [];
     const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
