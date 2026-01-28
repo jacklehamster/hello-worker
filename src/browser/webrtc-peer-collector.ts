@@ -188,7 +188,6 @@ export function collectPeerConnections({
             peer,
             initiateForThisUser: state?.initiateForThisUser ?? false,
             close() {
-              console.log("Closing state", userId, peer.userId);
               this.pc?.close();
               this.pc = undefined;
             },
@@ -211,7 +210,6 @@ export function collectPeerConnections({
       }
 
       async function makeOffer(user: IPeer) {
-        console.log("Making offer");
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
         const state = await getPeer(user);
         const pc = state.pc;
