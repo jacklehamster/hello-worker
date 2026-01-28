@@ -1,4 +1,4 @@
-import { EnterRoom, enterRoom } from "./signal-room";
+import { EnterRoom, enterRoom } from "./signal/signal-room";
 import {
   SigType,
   SigPayload,
@@ -84,7 +84,6 @@ export function enterWorld<
     };
     const onmessage = ({ data }: MessageEvent) => {
       conveyMessage(data, userId);
-      // logLine("💬", { event: "dc-message", userId, data });
     };
     dc.addEventListener("message", onmessage);
     dc.addEventListener("close", () => {
@@ -94,6 +93,7 @@ export function enterWorld<
         listener(userId, "leave", [...userIds]),
       );
       dc.removeEventListener("message", onmessage);
+      restart?.();
     });
     dc.onerror = () => logLine?.("⚠️ ERROR", { error: "dc-error", userId });
   }

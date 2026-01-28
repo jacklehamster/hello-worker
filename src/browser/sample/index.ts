@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-import { enterRoom } from "../signal-room.js";
+import { enterRoom } from "../signal/signal-room.js";
 import { enterWorld } from "../enter-world.js";
 
 const statusEl = document.getElementById("status")!;
@@ -90,7 +90,7 @@ export function testWebRTC(websocketBroadcast: boolean) {
     worldId: websocketBroadcast ? "broadcast-test" : "webRTC-test",
     workerUrl: new URL("../signal-room.worker.js", import.meta.url),
     dataChannelOptions: {
-      ordered: false,
+      ordered: false, //  not ordered, but goes faster
     },
   });
 

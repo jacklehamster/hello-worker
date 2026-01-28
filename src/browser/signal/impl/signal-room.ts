@@ -58,7 +58,6 @@ export function enterRoom<T extends string, P = any>(params: {
     }
     const obj: OutMessage = { type, to, payload };
     accumulatedMessages.push(obj);
-    // ws.send(JSON.stringify(obj));
     logLine?.("👤 ➡️ 🖥️", obj);
     clearTimeout(timeout);
     if (exited || ws.readyState !== WebSocket.OPEN) {

@@ -1,5 +1,5 @@
-import { IPeer } from "./impl/signal-room";
-import { EnterRoom, enterRoom } from "./signal-room";
+import { IPeer } from "./signal/impl/signal-room";
+import { EnterRoom, enterRoom } from "./signal/signal-room";
 
 export type SigType = "offer" | "answer" | "ice" | "request-ice" | "broadcast";
 export type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
@@ -16,7 +16,6 @@ type UserState = {
 
   expirationTimeout?: number;
   close: () => void;
-  destroy: () => void;
 };
 
 const DEFAULT_ENTER_ROOM = enterRoom;
@@ -98,11 +97,10 @@ export function collectPeerConnections({
     onLeaveUser?.(userId);
     const p = users.get(userId);
     if (!p) return;
+    users.delete(userId);
     try {
       p.pc?.close();
     } catch {}
-    p.destroy();
-    users.delete(userId);
   }
 
   async function flushRemoteIce(state: UserState) {
@@ -137,18 +135,17 @@ export function collectPeerConnections({
     return new Promise<void>(async (resolve, reject) => {
       async function restart(user: IPeer) {
         const state = users.get(user.userId);
-        if (state) {
-          state.close();
-          const pc = await setupPC(state);
-          receivePeerConnection({
-            pc,
-            userId: user.userId,
-            initiator: true,
-            restart: () => restart(user),
-          });
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-          await makeOffer(user);
-        }
+        if (!state) return; //  user left
+        state.close();
+        const pc = await setupPC(state);
+        receivePeerConnection({
+          pc,
+          userId: user.userId,
+          initiator: true,
+          restart: () => restart(user),
+        });
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        await makeOffer(user);
       }
 
       async function setupPC(state: UserState) {
@@ -192,19 +189,7 @@ export function collectPeerConnections({
               this.pc?.close();
               this.pc = undefined;
             },
-            destroy() {
-              document.removeEventListener("visibilitychange", restartState);
-            },
           };
-          //  Ugly hack
-          const restartState = () => {
-            if (document.visibilityState === "hidden") {
-              close();
-            } else {
-              restart(peer);
-            }
-          };
-          document.addEventListener("visibilitychange", restartState);
 
           await setupPC(newState);
           state = newState;
@@ -262,7 +247,7 @@ export function collectPeerConnections({
           console.error("onError");
           reject();
         },
-        onClose(ev) {
+        onClose(ev: CloseEvent) {
           onRoomClose?.({ room, host, ev });
         },
 
@@ -297,7 +282,7 @@ export function collectPeerConnections({
           });
         },
 
-        onIceUrl(url, expiration) {
+        onIceUrl(url: string, expiration: number) {
           iceUrl = { url, expiration };
           icePromiseResolve?.(iceUrl);
         },
