@@ -19,7 +19,10 @@ function ts() {
 }
 
 function logLine(direction: string, obj?: any) {
-  logEl.textContent +=
+  // logEl.textContent +=
+  //   ts() + "  " + direction + "  " + (obj ? JSON.stringify(obj) : "") + "\n";
+  const group = logEl.appendChild(document.createElement("div"));
+  group.textContent =
     ts() + "  " + direction + "  " + (obj ? JSON.stringify(obj) : "") + "\n";
   logEl.scrollTop = logEl.scrollHeight;
 }
