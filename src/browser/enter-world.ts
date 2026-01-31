@@ -27,7 +27,7 @@ export function enterWorld<
 }: {
   userId?: string;
   worldId: string;
-  logLine?: (direction: string, obj?: any) => void;
+  logLine?: (...obj: any[]) => void;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
   peerlessUserExpiration?: number;
   workerUrl?: URL;

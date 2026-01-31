@@ -18,12 +18,17 @@ function ts() {
   )}`;
 }
 
-function logLine(direction: string, obj?: any) {
+function logLine(direction: string, ...data: any[]) {
   // logEl.textContent +=
   //   ts() + "  " + direction + "  " + (obj ? JSON.stringify(obj) : "") + "\n";
   const group = logEl.appendChild(document.createElement("div"));
   group.textContent =
-    ts() + "  " + direction + "  " + (obj ? JSON.stringify(obj) : "") + "\n";
+    ts() +
+    "  " +
+    direction +
+    "  " +
+    data.map((d) => JSON.stringify(d)).join(" ") +
+    "\n";
   logEl.scrollTop = logEl.scrollHeight;
 }
 
