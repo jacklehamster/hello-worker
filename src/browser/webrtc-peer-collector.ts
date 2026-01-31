@@ -79,16 +79,22 @@ export function collectPeerConnections({
 
   async function getRtcConfig(
     iceUrl: string,
+    retryIce: () => Promise<{ url: string }>,
   ): Promise<RTCConfiguration & { timestamp: number }> {
     if (iceUrl) {
-      try {
-        const r = await fetch(iceUrl);
-        if (!r.ok) throw new Error(`ICE endpoint failed: ${r.status}`);
-        rtcConfig = (await r.json()) as RTCConfiguration & {
-          timestamp: number;
-        };
-      } catch (e) {
-        console.warn("Using fallback rtcConfig:", e);
+      let retries = 3;
+      for (let r = 0; r < retries; r++) {
+        try {
+          const r = await fetch(iceUrl);
+          if (!r.ok) throw new Error(`ICE endpoint failed: ${r.status}`);
+          rtcConfig = (await r.json()) as RTCConfiguration & {
+            timestamp: number;
+          };
+          return rtcConfig;
+        } catch (e) {
+          console.warn("Failed fetching iceUrl");
+        }
+        iceUrl = (await retryIce()).url;
       }
     }
     return rtcConfig;
@@ -156,7 +162,7 @@ export function collectPeerConnections({
             !iceUrl || iceUrl.expiration - now < 2000
               ? await requestIce()
               : iceUrl;
-          rtcConfig = await getRtcConfig(ice.url);
+          rtcConfig = await getRtcConfig(ice.url, requestIce);
         }
         state.pc = new RTCPeerConnection(rtcConfig);
         // Send local ICE candidates to this peer
