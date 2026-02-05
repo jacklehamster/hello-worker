@@ -48,15 +48,15 @@ export function enterWorld<
     peerUserId: string,
     restart?: () => void,
   ) {
-    const dc = pc.createDataChannel("data", dataChannelOptions);
-    wireDataChannel(peerUserId, dc, restart);
-    dataChannels.set(peerUserId, dc);
     function listener(ev: RTCDataChannelEvent) {
       const dc = ev.channel;
       wireDataChannel(peerUserId, dc, restart);
       dataChannels.set(peerUserId, dc);
     }
     pc.addEventListener("datachannel", listener);
+    const dc = pc.createDataChannel("data", dataChannelOptions);
+    wireDataChannel(peerUserId, dc, restart);
+    dataChannels.set(peerUserId, dc);
     return () => {
       pc.removeEventListener("datachannel", listener);
     };
