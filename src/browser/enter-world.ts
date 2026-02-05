@@ -82,16 +82,19 @@ export function enterWorld<
       conveyMessage(data, userId);
     };
     dc.addEventListener("message", onmessage);
-    dc.addEventListener("close", () => {
+    dc.onclose = () => {
       logLine?.("💬", { event: "dc-close", userId });
       userIds.delete(userId);
       userListeners.forEach((listener) =>
         listener(userId, "leave", [...userIds]),
       );
       dc.removeEventListener("message", onmessage);
+      dc.onopen = null;
+      dc.onclose = null;
+      dc.onerror = null;
       dc.close();
       restart?.();
-    });
+    };
     dc.onerror = () => logLine?.("⚠️ ERROR", { error: "dc-error", userId });
   }
 
