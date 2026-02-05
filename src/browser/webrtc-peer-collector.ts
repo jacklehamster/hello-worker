@@ -178,6 +178,7 @@ export function collectPeerConnections({
             close() {
               this.pc?.close();
               this.pc = undefined;
+              users.delete(peer.userId);
             },
           };
 
