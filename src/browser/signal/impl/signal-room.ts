@@ -91,7 +91,7 @@ export function enterRoom<T extends string, P = any>(params: {
         msgs.forEach((msg) => {
           logLine?.("🖥️ ➡️ 👤", msg);
           if (msg.type === "peer-joined" || msg.type === "peer-left") {
-            updatePeers(msg.users);
+            updatePeers(msg.users, msg);
           } else if (msg.type === "ice-server") {
             params.onIceUrl?.(msg.url, msg.expiration);
           } else if (msg.userId) {
@@ -141,14 +141,17 @@ export function enterRoom<T extends string, P = any>(params: {
   }
 
   // Helper for peer tracking (logic from your original code)
-  function updatePeers(updatedUsers: { userId: string }[]) {
+  function updatePeers(updatedUsers: { userId: string }[], msg: Message) {
     const joined: IPeer<T, P>[] = [];
     const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
 
     updatedUsers.forEach(({ userId: pUserId }) => {
       if (pUserId === userId) return;
-      if (!peers.has(pUserId)) {
+      if (
+        !peers.has(pUserId) ||
+        (msg.type === "peer-joined" && pUserId === msg.userId)
+      ) {
         const newPeer = {
           userId: pUserId,
           receive: (t: T, p: P) => send(t, pUserId, p),
@@ -160,11 +163,15 @@ export function enterRoom<T extends string, P = any>(params: {
     });
 
     for (const pUserId of peers.keys()) {
-      if (!updatedPeerSet.has(pUserId)) {
+      if (
+        !updatedPeerSet.has(pUserId) ||
+        (msg.type === "peer-left" && pUserId === msg.userId)
+      ) {
         peers.delete(pUserId);
         left.push({ userId: pUserId });
       }
     }
+
     //  Notify peer joined first then peer left. (avoid disconnect in case the peer leaving / joining is on the same user).
     if (joined.length) params.onPeerJoined(joined);
     if (left.length) params.onPeerLeft(left);
