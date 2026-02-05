@@ -138,20 +138,6 @@ export function collectPeerConnections({
 
   function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>(async (resolve, reject) => {
-      async function restartInitiator(user: IPeer) {
-        const state = users.get(user.userId);
-        if (!state) return; //  user left
-        state.close();
-        const pc = await setupPC(state);
-        receivePeerConnection({
-          pc,
-          userId: user.userId,
-          restart: () => restartInitiator(user),
-        });
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        await makeOffer(user);
-      }
-
       async function setupPC(state: UserState) {
         const now = Date.now();
         if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
@@ -268,7 +254,7 @@ export function collectPeerConnections({
             receivePeerConnection({
               pc,
               userId: user.userId,
-              restart: () => restartInitiator(user),
+              restart: () => state.close(),
             });
             await makeOffer(user);
           });
