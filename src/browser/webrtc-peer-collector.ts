@@ -15,7 +15,6 @@ type UserState = {
   peer: IPeer<SigType, SigPayload>;
 
   expirationTimeout?: number;
-  initiateForThisUser: boolean;
   close: () => void;
 };
 
@@ -48,7 +47,6 @@ export function collectPeerConnections({
   receivePeerConnection(connection: {
     pc: RTCPeerConnection;
     userId: string;
-    initiator: boolean;
     restart?: () => void;
   }): void;
   onRoomReady?(info: { host: string; room: string }): void;
@@ -148,7 +146,6 @@ export function collectPeerConnections({
         receivePeerConnection({
           pc,
           userId: user.userId,
-          initiator: true,
           restart: () => restartInitiator(user),
         });
         await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -192,7 +189,6 @@ export function collectPeerConnections({
             userId: peer.userId,
             pendingRemoteIce: [],
             peer,
-            initiateForThisUser: state?.initiateForThisUser ?? false,
             close() {
               this.pc?.close();
               this.pc = undefined;
@@ -262,11 +258,7 @@ export function collectPeerConnections({
         // Existing peers initiate to the newcomer
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
           joiningUsers.forEach(async (user) => {
-            const hadState = users.has(user.userId);
             const state = await getPeer(user, true);
-            if (!hadState) {
-              state.initiateForThisUser = true;
-            }
             const pc = state.pc;
             if (!pc) {
               logLine?.("👤ℹ️", "no pc: " + user.userId);
@@ -276,14 +268,9 @@ export function collectPeerConnections({
             receivePeerConnection({
               pc,
               userId: user.userId,
-              initiator: state.initiateForThisUser,
-              restart: state.initiateForThisUser
-                ? () => restartInitiator(user)
-                : () => state.close(),
+              restart: () => restartInitiator(user),
             });
-            if (state.initiateForThisUser) {
-              await makeOffer(user);
-            }
+            await makeOffer(user);
           });
         },
 
@@ -309,11 +296,11 @@ export function collectPeerConnections({
           if (!pc) return;
 
           if (type === "offer") {
-            state.initiateForThisUser = false;
+            state.close();
+
             receivePeerConnection({
               pc,
               userId: from.userId,
-              initiator: false,
               restart() {
                 //  reset PC
                 state.close();
