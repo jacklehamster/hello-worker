@@ -292,12 +292,10 @@ export function collectPeerConnections({
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
           const state = await getPeer(from);
-          const pc = state.pc;
-          if (!pc) return;
 
           if (type === "offer") {
-            state.close();
-            await setupPC(state);
+            state.close(); //  need new PC
+            const pc = await setupPC(state);
 
             receivePeerConnection({
               pc,
@@ -321,6 +319,8 @@ export function collectPeerConnections({
             return;
           }
 
+          const pc = state.pc ?? (await setupPC(state));
+
           if (type === "answer") {
             // Initiator: set remote answer
             await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
@@ -332,13 +332,13 @@ export function collectPeerConnections({
             const ice = payload as RTCIceCandidateInit;
 
             // If we don't have remoteDescription yet, queue it
-            if (!pc.remoteDescription) {
+            if (pc.remoteDescription) {
               state.pendingRemoteIce.push(ice);
               return;
             }
 
             try {
-              await pc.addIceCandidate(ice);
+              await state.pc?.addIceCandidate(ice);
             } catch (e) {
               logLine?.("⚠️ ERROR", {
                 error: "add-ice-failed",
