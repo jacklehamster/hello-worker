@@ -46,24 +46,20 @@ export function enterWorld<
   function createDataChannel(
     pc: RTCPeerConnection,
     peerUserId: string,
-    initiator: boolean,
     restart?: () => void,
   ) {
-    if (initiator) {
-      const dc = pc.createDataChannel("data", dataChannelOptions);
+    const dc = pc.createDataChannel("data", dataChannelOptions);
+    wireDataChannel(peerUserId, dc, restart);
+    dataChannels.set(peerUserId, dc);
+    function listener(ev: RTCDataChannelEvent) {
+      const dc = ev.channel;
       wireDataChannel(peerUserId, dc, restart);
       dataChannels.set(peerUserId, dc);
-    } else {
-      function listener(ev: RTCDataChannelEvent) {
-        const dc = ev.channel;
-        wireDataChannel(peerUserId, dc, restart);
-        dataChannels.set(peerUserId, dc);
-      }
-      pc.addEventListener("datachannel", listener);
-      return () => {
-        pc.removeEventListener("datachannel", listener);
-      };
     }
+    pc.addEventListener("datachannel", listener);
+    return () => {
+      pc.removeEventListener("datachannel", listener);
+    };
   }
 
   function conveyMessage(data: any, userId: string) {
@@ -124,8 +120,8 @@ export function enterWorld<
       } catch {}
       dataChannels.delete(userId);
     },
-    receivePeerConnection({ pc, userId, initiator, restart }) {
-      createDataChannel(pc, userId, initiator, restart);
+    receivePeerConnection({ pc, userId, restart }) {
+      createDataChannel(pc, userId, restart);
     },
     onBroadcastMessage(payload, from) {
       conveyMessage(payload, from);
