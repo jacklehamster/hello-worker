@@ -297,6 +297,7 @@ export function collectPeerConnections({
 
           if (type === "offer") {
             state.close();
+            await setupPC(state);
 
             receivePeerConnection({
               pc,
