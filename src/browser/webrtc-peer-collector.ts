@@ -286,10 +286,7 @@ export function collectPeerConnections({
             receivePeerConnection({
               pc,
               userId: from.userId,
-              restart() {
-                //  reset PC
-                state.close();
-              },
+              restart: () => state.close(),
             });
             // Responder: set remote offer
             await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);

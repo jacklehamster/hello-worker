@@ -89,6 +89,7 @@ export function enterWorld<
         listener(userId, "leave", [...userIds]),
       );
       dc.removeEventListener("message", onmessage);
+      dc.close();
       restart?.();
     });
     dc.onerror = () => logLine?.("⚠️ ERROR", { error: "dc-error", userId });
