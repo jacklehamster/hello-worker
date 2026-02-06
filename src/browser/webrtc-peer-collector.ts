@@ -316,7 +316,7 @@ export function collectPeerConnections({
             const ice = payload as RTCIceCandidateInit;
 
             // If we don't have remoteDescription yet, queue it
-            if (pc.remoteDescription) {
+            if (!pc.remoteDescription) {
               state.pendingRemoteIce.push(ice);
               return;
             }
