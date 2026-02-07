@@ -164,6 +164,7 @@ export function collectPeerConnections({
             //  reset the connection
             state.close();
             const userState = await getPeer(state.peer, true);
+            console.log(">>", userState.peer.userId);
             if (userState.pc) {
               receivePeerConnection({
                 pc: userState.pc,
