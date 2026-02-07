@@ -179,7 +179,9 @@ export function enterWorld<
       userIds.forEach((userId) => {
         dataChannels.get(userId)?.close();
         dataChannels.delete(userId);
-        resetPeerCollection(userId);
+        setTimeout(() => {
+          resetPeerCollection(userId);
+        }, 2000);
       });
     },
     end() {
