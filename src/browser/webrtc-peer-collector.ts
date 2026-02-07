@@ -198,17 +198,19 @@ export function collectPeerConnections({
               newState.close();
               const userState = await getPeer(peer, true);
               console.log(">>", userState.peer.userId);
-              if (!userState.pc) {
-                console.log("no pc");
-                return;
-              }
 
-              receivePeerConnection({
-                pc: userState.pc,
-                userId: userState.peer.userId,
-                restart: () => userState.close(),
-              });
-              await makeOffer(userState.peer);
+              setTimeout(async () => {
+                if (!userState.pc) {
+                  console.log("no pc");
+                  return;
+                }
+                receivePeerConnection({
+                  pc: userState.pc,
+                  userId: userState.peer.userId,
+                  restart: () => userState.close(),
+                });
+                await makeOffer(userState.peer);
+              }, 3000);
             },
           };
 
