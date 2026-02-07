@@ -28,6 +28,7 @@
     <button id="clear-log">Clear log</button>
     <button id="welcome-button" disabled>welcome</button>
     <button id="webrtc-button">test webRTC</button>
+    <button id="reset-webrtc">reset webRTC</button>
     <button id="broadcast-button">test broadcast</button>
   </div>
 
@@ -46,6 +47,7 @@
       document.getElementById("welcome-button").disabled = true;
       document.getElementById("welcome-button").disabled = true;
       document.getElementById("webrtc-button").disabled = false;
+      document.getElementById("reset-webrtc").disabled =  document.getElementById("webrtc-button").disabled;
       document.getElementById("broadcast-button").disabled = false;
       onExit = testWelcome();
     }
@@ -54,6 +56,7 @@
       document.getElementById("self-link").href = location.href;
       document.getElementById("welcome-button").disabled = false;
       document.getElementById("webrtc-button").disabled = true;
+      document.getElementById("reset-webrtc").disabled =  document.getElementById("webrtc-button").disabled;
       document.getElementById("broadcast-button").disabled = false;
       onExit = testWebRTC(false);   
     }
@@ -62,6 +65,7 @@
       document.getElementById("self-link").href = location.href;
       document.getElementById("welcome-button").disabled = false;
       document.getElementById("webrtc-button").disabled = false;
+      document.getElementById("reset-webrtc").disabled =  document.getElementById("webrtc-button").disabled;
       document.getElementById("broadcast-button").disabled = true;
       onExit = testWebRTC(true);   
     }
@@ -99,6 +103,9 @@
     document.getElementById("webrtc-button").onclick = () => {
       onExit?.();
       setWebRTC();
+    };
+    document.getElementById("reset-webrtc").onclick = () => {
+      console.log("Reset WebRTC");
     };
     document.getElementById("broadcast-button").onclick = () => {
       onExit?.();
