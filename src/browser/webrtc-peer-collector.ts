@@ -161,13 +161,15 @@ export function collectPeerConnections({
             state: state.pc?.connectionState,
           });
           if (state.pc?.connectionState === "failed") {
-            const newPc = await setupPC(state); //  retry
+            const newState = await getPeer(state.peer, true);
+            const pc = await setupPC(newState);
+
             receivePeerConnection({
-              pc: newPc,
-              userId: state.userId,
-              restart: () => state.close(),
+              pc,
+              userId: newState.userId,
+              restart: () => newState.close(),
             });
-            await makeOffer(state.peer);
+            await makeOffer(newState.peer);
           }
         };
 
