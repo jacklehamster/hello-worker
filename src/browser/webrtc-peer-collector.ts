@@ -14,7 +14,8 @@ type UserState = {
   peer: IPeer<SigType, SigPayload>;
 
   expirationTimeout?: number;
-  close: () => void;
+  close(): void;
+  reset(): void;
 };
 
 const DEFAULT_ENTER_ROOM = enterRoom;
@@ -193,6 +194,21 @@ export function collectPeerConnections({
               this.pc = undefined;
               users.delete(peer.userId);
             },
+            async reset() {
+              newState.close();
+              const userState = await getPeer(peer, true);
+              if (!userState.pc) {
+                console.log("no pc");
+                return;
+              }
+
+              receivePeerConnection({
+                pc: userState.pc,
+                userId: userState.peer.userId,
+                restart: () => userState.close(),
+              });
+              await makeOffer(userState.peer);
+            },
           };
 
           await setupPC(newState);
@@ -203,9 +219,9 @@ export function collectPeerConnections({
         } else if (state) {
           clearTimeout(state.expirationTimeout);
           state.expirationTimeout = 0;
-        }
-        if (!state.pc || state.pc.signalingState === "closed") {
-          await setupPC(state);
+          if (!state.pc || state.pc.signalingState === "closed") {
+            await setupPC(state);
+          }
         }
         state.peer = peer;
         return state;
@@ -365,10 +381,9 @@ export function collectPeerConnections({
     enterRoom: enter,
     exitRoom: exit,
     leaveUser,
-    reset(userId: string) {
-      const user = users.get(userId);
-      user?.close();
-      // const newUser =
+    async reset(userId: string) {
+      const userState = users.get(userId);
+      userState?.reset();
     },
     broadcast<P extends any>(payload: P) {
       roomsEntered.forEach((room) => room.broadcast(payload));
