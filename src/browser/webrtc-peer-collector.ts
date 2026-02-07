@@ -5,7 +5,6 @@ export type SigType = "offer" | "answer" | "ice" | "request-ice" | "broadcast";
 export type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
 
 type UserState = {
-  userId: string;
   pc?: RTCPeerConnection;
 
   // ICE that arrived before we had remoteDescription
@@ -120,7 +119,7 @@ export function collectPeerConnections({
       } catch (e) {
         logLine?.("⚠️ ERROR", {
           error: "add-ice-failed",
-          userId: state.userId,
+          userId: state.peer.userId,
           detail: String(e),
         });
       }
@@ -157,11 +156,23 @@ export function collectPeerConnections({
         state.pc.onconnectionstatechange = async () => {
           logLine?.("💬", {
             event: "pc-state",
-            userId: state.userId,
+            userId: state.peer.userId,
             state: state.pc?.connectionState,
           });
           if (state.pc?.connectionState === "failed") {
-            location.reload();
+            //  reset the connection
+            state.pc.close();
+            const userState = await getPeer(state.peer, true);
+            if (userState.pc) {
+              receivePeerConnection({
+                pc: userState.pc,
+                userId: userState.peer.userId,
+                restart: () => userState.close(),
+              });
+              await makeOffer(userState.peer);
+            } else {
+              logLine?.("👤ℹ️", "no pc: " + userState.peer.userId);
+            }
             return;
           }
         };
@@ -176,7 +187,6 @@ export function collectPeerConnections({
         let state = users.get(peer.userId);
         if (!state || forceReset) {
           const newState: UserState = {
-            userId: peer.userId,
             pendingRemoteIce: [],
             peer,
             close() {
@@ -190,7 +200,7 @@ export function collectPeerConnections({
           state = newState;
 
           //  New user
-          users.set(state.userId, state);
+          users.set(state.peer.userId, state);
         } else if (state) {
           clearTimeout(state.expirationTimeout);
           state.expirationTimeout = 0;
@@ -330,7 +340,7 @@ export function collectPeerConnections({
             } catch (e) {
               logLine?.("⚠️ ERROR", {
                 error: "add-ice-failed",
-                userId: state.userId,
+                userId: state.peer.userId,
                 detail: String(e),
               });
             }
@@ -362,7 +372,7 @@ export function collectPeerConnections({
     end() {
       roomsEntered.forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();
-      users.forEach(({ userId }) => leaveUser(userId));
+      users.forEach(({ peer }) => leaveUser(peer.userId));
       users.clear();
     },
   };
