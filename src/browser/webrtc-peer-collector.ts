@@ -162,14 +162,16 @@ export function collectPeerConnections({
           });
           if (state.pc?.connectionState === "failed") {
             const newState = await getPeer(state.peer, true);
-            const pc = await setupPC(newState);
-
-            receivePeerConnection({
-              pc,
-              userId: newState.userId,
-              restart: () => newState.close(),
-            });
-            await makeOffer(newState.peer);
+            if (newState.pc) {
+              receivePeerConnection({
+                pc: newState.pc,
+                userId: newState.userId,
+                restart: () => newState.close(),
+              });
+              await makeOffer(newState.peer);
+            } else {
+              console.log("Unable to create PC on peer");
+            }
           }
         };
 
