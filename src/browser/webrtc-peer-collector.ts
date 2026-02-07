@@ -154,14 +154,20 @@ export function collectPeerConnections({
           state.peer.receive("ice", ev.candidate.toJSON());
         };
 
-        state.pc.onconnectionstatechange = () => {
+        state.pc.onconnectionstatechange = async () => {
           logLine?.("💬", {
             event: "pc-state",
             userId: state.userId,
             state: state.pc?.connectionState,
           });
           if (state.pc?.connectionState === "failed") {
-            setupPC(state); //  retry
+            const newPc = await setupPC(state); //  retry
+            receivePeerConnection({
+              pc: newPc,
+              userId: state.userId,
+              restart: () => state.close(),
+            });
+            await makeOffer(state.peer);
           }
         };
 
@@ -345,9 +351,7 @@ export function collectPeerConnections({
         exitRoom,
         room,
         host,
-        broadcast: (payload) => {
-          sendToServer("broadcast", payload);
-        },
+        broadcast: (payload) => sendToServer("broadcast", payload),
       });
     });
   }
