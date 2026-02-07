@@ -40,7 +40,8 @@ export function enterWorld<
   dataChannelOptions?: RTCDataChannelInit;
 }) {
   const userIds = new Set<string>();
-
+  const dataChannels = new Map<string, RTCDataChannel>();
+  const userListeners = new Set<UserListener>();
   const messagesListeners = new Set<(data: R, from: string) => void>();
 
   function createDataChannel(
@@ -97,9 +98,6 @@ export function enterWorld<
     };
     dc.onerror = () => logLine?.("⚠️ ERROR", { error: "dc-error", userId });
   }
-
-  const dataChannels = new Map<string, RTCDataChannel>();
-  const userListeners = new Set<UserListener>();
 
   const {
     userId,
@@ -176,6 +174,12 @@ export function enterWorld<
     removeMessageListener,
     addUserListener,
     removeUserListener,
+    reset() {
+      userIds.forEach((userId) => {
+        dataChannels.get(userId)?.close();
+        dataChannels.delete(userId);
+      });
+    },
     end() {
       dataChannels.forEach((dataChannel) => {
         try {

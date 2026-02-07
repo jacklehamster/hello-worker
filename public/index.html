@@ -38,7 +38,7 @@
 
 
   <script type="module">
-    import { testWelcome, testWebRTC, clearLog } from "./sample/index.js";
+    import { testWelcome, testWebRTC, clearLog, resetWebRTC } from "./sample/index.js";
 
     let onExit;
     function setupWelcome() {
@@ -106,6 +106,7 @@
     };
     document.getElementById("reset-webrtc").onclick = () => {
       console.log("Reset WebRTC");
+      resetWebRTC();
     };
     document.getElementById("broadcast-button").onclick = () => {
       onExit?.();

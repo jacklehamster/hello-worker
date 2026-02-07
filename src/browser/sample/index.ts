@@ -77,6 +77,11 @@ export function testWelcome() {
   };
 }
 
+let reset: () => void = () => {};
+export function resetWebRTC() {
+  reset();
+}
+
 export function testWebRTC(websocketBroadcast: boolean) {
   function setEmojiPos01(x01: number, y01: number) {
     const r = stageEl!.getBoundingClientRect();
@@ -98,6 +103,8 @@ export function testWebRTC(websocketBroadcast: boolean) {
       ordered: false, //  not ordered, but goes faster
     },
   });
+
+  reset = session.reset;
 
   // --- create a stage + emoji (if not already in HTML) ---
   let stageEl = document.getElementById("stage") as HTMLDivElement | null;
@@ -200,5 +207,6 @@ export function testWebRTC(websocketBroadcast: boolean) {
     welcomeEl.classList.remove("hidden");
     session.end();
     logLine("💬", { event: "stop-webrtc-test" });
+    reset = () => {};
   };
 }

@@ -204,7 +204,7 @@ export function collectPeerConnections({
           clearTimeout(state.expirationTimeout);
           state.expirationTimeout = 0;
         }
-        if (!state.pc || state.pc?.signalingState === "closed") {
+        if (!state.pc || state.pc.signalingState === "closed") {
           await setupPC(state);
         }
         state.peer = peer;
@@ -365,6 +365,11 @@ export function collectPeerConnections({
     enterRoom: enter,
     exitRoom: exit,
     leaveUser,
+    reset(userId: string) {
+      const user = users.get(userId);
+      user?.close();
+      // const newUser =
+    },
     broadcast<P extends any>(payload: P) {
       roomsEntered.forEach((room) => room.broadcast(payload));
     },
