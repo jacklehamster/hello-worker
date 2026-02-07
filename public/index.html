@@ -47,7 +47,7 @@
       document.getElementById("welcome-button").disabled = true;
       document.getElementById("welcome-button").disabled = true;
       document.getElementById("webrtc-button").disabled = false;
-      document.getElementById("reset-webrtc").disabled =  document.getElementById("webrtc-button").disabled;
+      document.getElementById("reset-webrtc").disabled =  !document.getElementById("webrtc-button").disabled;
       document.getElementById("broadcast-button").disabled = false;
       onExit = testWelcome();
     }
@@ -56,7 +56,7 @@
       document.getElementById("self-link").href = location.href;
       document.getElementById("welcome-button").disabled = false;
       document.getElementById("webrtc-button").disabled = true;
-      document.getElementById("reset-webrtc").disabled =  document.getElementById("webrtc-button").disabled;
+      document.getElementById("reset-webrtc").disabled =  !document.getElementById("webrtc-button").disabled;
       document.getElementById("broadcast-button").disabled = false;
       onExit = testWebRTC(false);   
     }
@@ -65,7 +65,7 @@
       document.getElementById("self-link").href = location.href;
       document.getElementById("welcome-button").disabled = false;
       document.getElementById("webrtc-button").disabled = false;
-      document.getElementById("reset-webrtc").disabled =  document.getElementById("webrtc-button").disabled;
+      document.getElementById("reset-webrtc").disabled =  !document.getElementById("webrtc-button").disabled;
       document.getElementById("broadcast-button").disabled = true;
       onExit = testWebRTC(true);   
     }
