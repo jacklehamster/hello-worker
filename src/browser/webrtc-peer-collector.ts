@@ -160,6 +160,9 @@ export function collectPeerConnections({
             userId: state.userId,
             state: state.pc?.connectionState,
           });
+          if (state.pc?.connectionState === "failed") {
+            setupPC(state); //  retry
+          }
         };
 
         return state.pc;
