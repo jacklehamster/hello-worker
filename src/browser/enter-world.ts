@@ -106,6 +106,7 @@ export function enterWorld<
     leaveUser,
     broadcast,
     end: endPeerCollection,
+    reset: resetPeerCollection,
   } = collectPeerConnections({
     userId: passedUserId,
     worldId,
@@ -178,6 +179,7 @@ export function enterWorld<
       userIds.forEach((userId) => {
         dataChannels.get(userId)?.close();
         dataChannels.delete(userId);
+        resetPeerCollection(userId);
       });
     },
     end() {
