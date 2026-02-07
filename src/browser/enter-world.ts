@@ -177,6 +177,8 @@ export function enterWorld<
     removeUserListener,
     reset() {
       userIds.forEach((userId) => {
+        dataChannels.get(userId)?.close();
+        dataChannels.delete(userId);
         resetPeerCollection(userId);
       });
     },
