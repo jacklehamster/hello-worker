@@ -169,9 +169,6 @@ export function collectPeerConnections({
                 userId: userState.peer.userId,
                 restart: () => userState.close(),
               });
-              setTimeout(async () => {
-                await makeOffer(userState.peer);
-              }, 3000);
             } else {
               logLine?.("👤ℹ️", "no pc: " + userState.peer.userId);
             }
