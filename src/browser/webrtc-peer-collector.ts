@@ -103,7 +103,7 @@ export function collectPeerConnections({
     if (!p) return;
     users.delete(userId);
     try {
-      p.pc?.close();
+      p.close();
     } catch {}
   }
 
@@ -161,7 +161,7 @@ export function collectPeerConnections({
           });
           if (state.pc?.connectionState === "failed") {
             //  reset the connection
-            state.pc.close();
+            state.close();
             const userState = await getPeer(state.peer, true);
             if (userState.pc) {
               receivePeerConnection({
