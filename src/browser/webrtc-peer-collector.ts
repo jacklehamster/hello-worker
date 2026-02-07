@@ -164,7 +164,6 @@ export function collectPeerConnections({
             //  reset the connection
             state.close();
             const userState = await getPeer(state.peer, true);
-            console.log(">>", userState.peer.userId);
             if (userState.pc) {
               receivePeerConnection({
                 pc: userState.pc,
@@ -198,6 +197,7 @@ export function collectPeerConnections({
             async reset() {
               newState.close();
               const userState = await getPeer(peer, true);
+              console.log(">>", userState.peer.userId);
               if (!userState.pc) {
                 console.log("no pc");
                 return;
