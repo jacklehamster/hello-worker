@@ -168,7 +168,9 @@ export function collectPeerConnections({
                 userId: newState.userId,
                 restart: () => newState.close(),
               });
-              await makeOffer(newState.peer);
+              setTimeout(async () => {
+                await makeOffer(newState.peer);
+              }, 2000);
             } else {
               console.log("Unable to create PC on peer");
             }
