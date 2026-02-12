@@ -315,21 +315,26 @@ export function collectPeerConnections({
             state.pc && state.pc.signalingState !== "closed"
               ? state.pc
               : await setupPC(state);
+          logLine?.("💬", { signalingState: pc.signalingState });
 
           if (type === "offer") {
+            const newPCc =
+              pc.signalingState === "stable" ? await setupPC(state) : pc; //  reset
             receivePeerConnection({
-              pc,
+              pc: newPCc,
               userId: from.userId,
               restart: () => state.close(),
             });
             // Responder: set remote offer
-            await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
+            await newPCc.setRemoteDescription(
+              payload as RTCSessionDescriptionInit,
+            );
 
             // Create and send answer
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
+            const answer = await newPCc.createAnswer();
+            await newPCc.setLocalDescription(answer);
 
-            from.receive("answer", pc.localDescription?.toJSON()!);
+            from.receive("answer", newPCc.localDescription?.toJSON()!);
 
             // Now safe to apply any queued ICE from this peer
             await flushRemoteIce(state);
