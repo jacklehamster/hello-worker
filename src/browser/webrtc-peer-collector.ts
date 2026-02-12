@@ -311,6 +311,7 @@ export function collectPeerConnections({
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
           const state = await getPeer(from);
+          logLine?.("💬", { preSignalingState: state.pc?.signalingState });
           const pc =
             state.pc && state.pc.signalingState !== "closed"
               ? state.pc
