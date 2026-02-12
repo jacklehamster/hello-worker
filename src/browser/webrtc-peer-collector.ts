@@ -311,10 +311,9 @@ export function collectPeerConnections({
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
           const state = await getPeer(from);
+          const pc = state.pc ?? (await setupPC(state));
 
           if (type === "offer") {
-            const pc = await setupPC(state);
-
             receivePeerConnection({
               pc,
               userId: from.userId,
@@ -333,8 +332,6 @@ export function collectPeerConnections({
             await flushRemoteIce(state);
             return;
           }
-
-          const pc = state.pc ?? (await setupPC(state));
 
           if (type === "answer") {
             // Initiator: set remote answer
