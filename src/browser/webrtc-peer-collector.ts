@@ -313,7 +313,6 @@ export function collectPeerConnections({
           const state = await getPeer(from);
 
           if (type === "offer") {
-            state.close(); //  need new PC
             const pc = await setupPC(state);
 
             receivePeerConnection({
