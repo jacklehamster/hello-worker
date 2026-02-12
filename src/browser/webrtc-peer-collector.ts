@@ -311,7 +311,10 @@ export function collectPeerConnections({
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
           const state = await getPeer(from);
-          const pc = state.pc ?? (await setupPC(state));
+          const pc =
+            state.pc && state.pc.signalingState !== "closed"
+              ? state.pc
+              : await setupPC(state);
 
           if (type === "offer") {
             receivePeerConnection({
