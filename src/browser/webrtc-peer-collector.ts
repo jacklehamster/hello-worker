@@ -310,7 +310,9 @@ export function collectPeerConnections({
         },
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
+          console.log("Message in.", type);
           const state = await getPeer(from);
+          console.log("Message in", type, state.pc?.signalingState);
           logLine?.("💬", {
             type,
             preSignalingState: state.pc?.signalingState,
@@ -322,8 +324,10 @@ export function collectPeerConnections({
           logLine?.("💬", { type, signalingState: pc.signalingState });
 
           if (type === "offer") {
+            console.log("Got offer. State: " + pc.signalingState);
             const newPCc =
               pc.signalingState === "stable" ? await setupPC(state) : pc; //  reset
+            console.log("Got new PC");
             receivePeerConnection({
               pc: newPCc,
               userId: from.userId,
@@ -333,15 +337,18 @@ export function collectPeerConnections({
             await newPCc.setRemoteDescription(
               payload as RTCSessionDescriptionInit,
             );
+            console.log("Set remote");
 
             // Create and send answer
             const answer = await newPCc.createAnswer();
             await newPCc.setLocalDescription(answer);
+            console.log("Set answer");
 
             from.receive("answer", newPCc.localDescription?.toJSON()!);
 
             // Now safe to apply any queued ICE from this peer
             await flushRemoteIce(state);
+            console.log("Flush");
             return;
           }
 
