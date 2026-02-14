@@ -214,7 +214,9 @@ export function collectPeerConnections({
             },
           };
 
+          console.log("setupPC on new state");
           await setupPC(newState);
+          console.log("Done setupPC on new state");
           state = newState;
 
           //  New user
@@ -223,7 +225,9 @@ export function collectPeerConnections({
           clearTimeout(state.expirationTimeout);
           state.expirationTimeout = 0;
           if (!state.pc || state.pc.signalingState === "closed") {
+            console.log("setupPC on existing state");
             await setupPC(state);
+            console.log("Done setupPC on existing state");
           }
         }
         state.peer = peer;
