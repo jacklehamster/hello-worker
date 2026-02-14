@@ -14,6 +14,13 @@ type UserState = {
   peer: IPeer<SigType, SigPayload>;
 
   expirationTimeout?: number;
+
+  // ✅ prevent concurrent setupPC for the same user
+  setupPromise?: Promise<RTCPeerConnection>;
+
+  // ✅ serialize all peer operations (offer/answer/ice) per user
+  opChain?: Promise<void>;
+
   close(): void;
   reset(): void;
 };
@@ -59,6 +66,7 @@ export function collectPeerConnections({
 }) {
   const userId = passedUserId ?? `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
+
   let iceUrl: { url: string; expiration: number } | undefined = undefined;
   let rtcConfig: RTCConfiguration & { timestamp: number } = {
     ...fallbackRtcConfig,
@@ -83,9 +91,9 @@ export function collectPeerConnections({
       let retries = 3;
       for (let r = 0; r < retries; r++) {
         try {
-          const r = await fetch(iceUrl);
-          if (!r.ok) throw new Error(`ICE endpoint failed: ${r.status}`);
-          rtcConfig = (await r.json()) as RTCConfiguration & {
+          const resp = await fetch(iceUrl);
+          if (!resp.ok) throw new Error(`ICE endpoint failed: ${resp.status}`);
+          rtcConfig = (await resp.json()) as RTCConfiguration & {
             timestamp: number;
           };
           return rtcConfig;
@@ -138,6 +146,10 @@ export function collectPeerConnections({
 
   function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>(async (resolve, reject) => {
+      /**
+       * Create a new RTCPeerConnection and attach handlers.
+       * NOTE: This should ONLY be called via ensurePC/resetPC so it cannot run concurrently.
+       */
       async function setupPC(state: UserState) {
         const now = Date.now();
         if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
@@ -147,114 +159,268 @@ export function collectPeerConnections({
               : iceUrl;
           rtcConfig = await getRtcConfig(ice.url, requestIce);
         }
-        state.pc = new RTCPeerConnection(rtcConfig);
+
+        const pc = new RTCPeerConnection(rtcConfig);
+        state.pc = pc;
+
         // Send local ICE candidates to this peer
-        state.pc.onicecandidate = (ev) => {
+        pc.onicecandidate = (ev) => {
           if (!ev.candidate) return;
           state.peer.receive("ice", ev.candidate.toJSON());
         };
 
-        state.pc.onconnectionstatechange = async () => {
+        pc.onconnectionstatechange = async () => {
           logLine?.("💬", {
             event: "pc-state",
             userId: state.peer.userId,
             state: state.pc?.connectionState,
           });
+
           if (state.pc?.connectionState === "failed") {
-            //  reset the connection
-            state.close();
-            const userState = await getPeer(state.peer, true);
-            if (userState.pc) {
-              receivePeerConnection({
-                pc: userState.pc,
-                userId: userState.peer.userId,
-                restart: () => userState.close(),
+            // reset the connection in a serialized way
+            // (don't call getPeer(forceReset) here; keep the same state)
+            try {
+              await resetPC(state);
+              if (state.pc) {
+                receivePeerConnection({
+                  pc: state.pc,
+                  userId: state.peer.userId,
+                  restart: () => state.close(),
+                });
+                // You previously did an offer on reset via your reset() path.
+                // We keep behavior by offering after a failure reset.
+                await makeOffer(state.peer);
+              }
+            } catch (e) {
+              logLine?.("⚠️ ERROR", {
+                error: "pc-reset-failed",
+                userId: state.peer.userId,
+                detail: String(e),
               });
-            } else {
-              logLine?.("👤ℹ️", "no pc: " + userState.peer.userId);
             }
-            return;
           }
         };
 
-        return state.pc;
+        return pc;
       }
 
+      /**
+       * ✅ Single-flight PC setup per state.
+       */
+      function ensurePC(state: UserState): Promise<RTCPeerConnection> {
+        if (state.pc && state.pc.signalingState !== "closed") {
+          return Promise.resolve(state.pc);
+        }
+        if (state.setupPromise) return state.setupPromise;
+
+        state.setupPromise = (async () => {
+          return await setupPC(state);
+        })().finally(() => {
+          state.setupPromise = undefined;
+        });
+
+        return state.setupPromise;
+      }
+
+      /**
+       * ✅ Reset the PC exactly once, safely.
+       */
+      async function resetPC(state: UserState): Promise<RTCPeerConnection> {
+        // If a setup is in flight, wait for it so we don't race close vs init.
+        if (state.setupPromise) {
+          try {
+            await state.setupPromise;
+          } catch {
+            // ignore; we'll proceed to rebuild
+          }
+        }
+
+        try {
+          state.pc?.close();
+        } catch {}
+        state.pc = undefined;
+        // pending ICE no longer valid for the old pc
+        state.pendingRemoteIce = [];
+
+        return await ensurePC(state);
+      }
+
+      /**
+       * Get or create state.
+       * - Creates exactly one state per userId (stores it before awaiting).
+       * - Does NOT reset by default; resets are explicit via resetPC.
+       */
       async function getPeer(
         peer: IPeer<SigType, SigPayload>,
-        forceReset?: boolean,
       ): Promise<UserState> {
         let state = users.get(peer.userId);
-        if (!state || forceReset) {
+        if (!state) {
           const newState: UserState = {
             pendingRemoteIce: [],
             peer,
             close() {
-              this.pc?.close();
+              try {
+                this.pc?.close();
+              } catch {}
               this.pc = undefined;
+              this.setupPromise = undefined;
+              this.opChain = undefined;
               users.delete(peer.userId);
             },
-            async reset() {
-              newState.close();
-              const userState = await getPeer(peer, true);
-              console.log(">>", userState.peer.userId);
+            reset() {
+              // Maintain external behavior: same signature; do a safe reset + re-offer after a delay
+              const self = this;
+              // serialize the reset with opChain so it doesn't interleave with message handling
+              self.opChain = (self.opChain ?? Promise.resolve()).then(
+                async () => {
+                  await resetPC(self);
 
-              setTimeout(async () => {
-                if (!userState.pc) {
-                  console.log("no pc");
-                  return;
-                }
-                receivePeerConnection({
-                  pc: userState.pc,
-                  userId: userState.peer.userId,
-                  restart: () => userState.close(),
-                });
-                await makeOffer(userState.peer);
-              }, 3000);
+                  setTimeout(async () => {
+                    if (!self.pc) return;
+                    receivePeerConnection({
+                      pc: self.pc,
+                      userId: self.peer.userId,
+                      restart: () => self.close(),
+                    });
+                    await makeOffer(self.peer);
+                  }, 3000);
+                },
+              );
             },
           };
 
-          console.log("setupPC on new state");
-          await setupPC(newState);
-          console.log("Done setupPC on new state");
-          state = newState;
+          // ✅ Put in map immediately so concurrent callers share it
+          users.set(peer.userId, newState);
 
-          //  New user
-          users.set(state.peer.userId, state);
-        } else if (state) {
+          // Ensure we have a PC (single-flight)
+          console.log("setupPC on new state");
+          await ensurePC(newState);
+          console.log("Done setupPC on new state");
+
+          state = newState;
+        } else {
+          // refresh peer handle and cancel expiration
           clearTimeout(state.expirationTimeout);
           state.expirationTimeout = 0;
-          if (!state.pc || state.pc.signalingState === "closed") {
-            console.log("setupPC on existing state");
-            await setupPC(state);
-            console.log("Done setupPC on existing state");
-          }
         }
+
         state.peer = peer;
         return state;
       }
 
       async function makeOffer(user: IPeer) {
-        // Offer flow: createOffer -> setLocalDescription -> send localDescription
         const state = await getPeer(user);
-        const pc = state.pc;
-        const offer = await pc?.createOffer();
-        await pc?.setLocalDescription(offer);
-        user.receive("offer", pc?.localDescription?.toJSON()!);
+        // serialize offer creation so we don't overlap with other operations
+        state.opChain = (state.opChain ?? Promise.resolve()).then(async () => {
+          const pc = await ensurePC(state);
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          user.receive("offer", pc.localDescription?.toJSON()!);
+        });
+        return state.opChain;
       }
 
+      // ✅ single-flight ICE request handling (prevents overwriting resolver)
       let icePromiseResolve:
         | undefined
         | ((url: { url: string; expiration: number }) => void);
+      let iceInFlight: Promise<{ url: string; expiration: number }> | undefined;
+
       async function requestIce() {
-        const iceUrl = await new Promise<{ url: string; expiration: number }>(
-          (resolve) => {
-            icePromiseResolve = resolve;
-            sendToServer("request-ice");
-          },
-        );
-        icePromiseResolve = undefined;
-        return iceUrl;
+        if (!iceInFlight) {
+          iceInFlight = new Promise<{ url: string; expiration: number }>(
+            (resolve) => {
+              icePromiseResolve = resolve;
+              sendToServer("request-ice");
+            },
+          ).finally(() => {
+            icePromiseResolve = undefined;
+            iceInFlight = undefined;
+          });
+        }
+        return await iceInFlight;
+      }
+
+      /**
+       * Message handling, but ALWAYS executed inside state.opChain for this peer.
+       */
+      async function handleMessage(
+        state: UserState,
+        type: SigType,
+        payload: any,
+        from: IPeer<SigType, SigPayload>,
+      ) {
+        console.log("Message in.", type);
+        logLine?.("💬", {
+          type,
+          preSignalingState: state.pc?.signalingState,
+        });
+
+        const pc = await ensurePC(state);
+
+        logLine?.("💬", { type, signalingState: pc.signalingState });
+
+        if (type === "offer") {
+          console.log("Got offer. State: " + pc.signalingState);
+
+          // Previous behavior sometimes rebuilt the PC if stable.
+          // That was a major source of races. Instead, only rebuild if closed.
+          const activePC =
+            pc.signalingState === "closed" ? await resetPC(state) : pc;
+
+          receivePeerConnection({
+            pc: activePC,
+            userId: from.userId,
+            restart: () => state.close(),
+          });
+
+          // Responder: set remote offer
+          await activePC.setRemoteDescription(
+            payload as RTCSessionDescriptionInit,
+          );
+
+          // Create and send answer
+          const answer = await activePC.createAnswer();
+          await activePC.setLocalDescription(answer);
+          from.receive("answer", activePC.localDescription?.toJSON()!);
+
+          // Now safe to apply any queued ICE from this peer
+          await flushRemoteIce(state);
+          return;
+        }
+
+        if (type === "answer") {
+          // Initiator: set remote answer
+          await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
+          await flushRemoteIce(state);
+          return;
+        }
+
+        if (type === "ice") {
+          const ice = payload as RTCIceCandidateInit;
+
+          // If we don't have remoteDescription yet, queue it
+          if (!pc.remoteDescription) {
+            state.pendingRemoteIce.push(ice);
+            return;
+          }
+
+          try {
+            await pc.addIceCandidate(ice);
+          } catch (e) {
+            logLine?.("⚠️ ERROR", {
+              error: "add-ice-failed",
+              userId: state.peer.userId,
+              detail: String(e),
+            });
+          }
+          return;
+        }
+
+        if (type === "broadcast") {
+          onBroadcastMessage?.(payload, from.userId);
+          return;
+        }
       }
 
       const { exitRoom, sendToServer } = enterRoom({
@@ -281,19 +447,20 @@ export function collectPeerConnections({
         // Existing peers initiate to the newcomer
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
           joiningUsers.forEach(async (user) => {
-            const state = await getPeer(user, true);
-            const pc = state.pc;
-            if (!pc) {
-              logLine?.("👤ℹ️", "no pc: " + user.userId);
-              return;
-            }
+            const state = await getPeer(user);
 
-            receivePeerConnection({
-              pc,
-              userId: user.userId,
-              restart: () => state.close(),
-            });
-            await makeOffer(user);
+            // Serialize "new peer joined" flow
+            state.opChain = (state.opChain ?? Promise.resolve()).then(
+              async () => {
+                const pc = await ensurePC(state);
+                receivePeerConnection({
+                  pc,
+                  userId: user.userId,
+                  restart: () => state.close(),
+                });
+                await makeOffer(user);
+              },
+            );
           });
         },
 
@@ -314,81 +481,25 @@ export function collectPeerConnections({
         },
 
         async onMessage(type: SigType, payload: any, from: IPeer) {
-          console.log("Message in.", type);
           const state = await getPeer(from);
-          console.log("Message in", type, state.pc?.signalingState);
-          logLine?.("💬", {
-            type,
-            preSignalingState: state.pc?.signalingState,
-          });
-          const pc =
-            state.pc && state.pc.signalingState !== "closed"
-              ? state.pc
-              : await setupPC(state);
-          logLine?.("💬", { type, signalingState: pc.signalingState });
 
-          if (type === "offer") {
-            console.log("Got offer. State: " + pc.signalingState);
-            const newPCc =
-              pc.signalingState === "stable" ? await setupPC(state) : pc; //  reset
-            console.log("Got new PC");
-            receivePeerConnection({
-              pc: newPCc,
-              userId: from.userId,
-              restart: () => state.close(),
-            });
-            // Responder: set remote offer
-            await newPCc.setRemoteDescription(
-              payload as RTCSessionDescriptionInit,
-            );
-            console.log("Set remote");
-
-            // Create and send answer
-            const answer = await newPCc.createAnswer();
-            await newPCc.setLocalDescription(answer);
-            console.log("Set answer");
-
-            from.receive("answer", newPCc.localDescription?.toJSON()!);
-
-            // Now safe to apply any queued ICE from this peer
-            await flushRemoteIce(state);
-            console.log("Flush");
-            return;
-          }
-
-          if (type === "answer") {
-            // Initiator: set remote answer
-            await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
-            await flushRemoteIce(state);
-            return;
-          }
-
-          if (type === "ice") {
-            const ice = payload as RTCIceCandidateInit;
-
-            // If we don't have remoteDescription yet, queue it
-            if (!pc.remoteDescription) {
-              state.pendingRemoteIce.push(ice);
-              return;
-            }
-
-            try {
-              await state.pc?.addIceCandidate(ice);
-            } catch (e) {
+          // ✅ serialize everything per-peer so we never re-enter setup/SDP ops concurrently
+          state.opChain = (state.opChain ?? Promise.resolve())
+            .then(async () => {
+              await handleMessage(state, type, payload, from);
+            })
+            .catch((e) => {
               logLine?.("⚠️ ERROR", {
-                error: "add-ice-failed",
-                userId: state.peer.userId,
+                error: "onMessage-failed",
+                userId: from.userId,
                 detail: String(e),
               });
-            }
-            return;
-          }
+            });
 
-          if (type === "broadcast") {
-            onBroadcastMessage?.(payload, from.userId);
-          }
+          return state.opChain;
         },
       });
+
       roomsEntered.set(`${host}/room/${room}`, {
         exitRoom,
         room,
@@ -418,34 +529,3 @@ export function collectPeerConnections({
     },
   };
 }
-
-/*
-Turn Token ID
-<CF_TURN_TOKEN_ID>
-
-API Token
-<CF_RTC_API_TOKEN>
-
-CURL
-curl \
-	-H "Authorization: Bearer <CF_RTC_API_TOKEN>" \
-	-H "Content-Type: application/json" -d '{"ttl": 86400}' \
-	https://rtc.live.cloudflare.com/v1/turn/keys/<CF_TURN_TOKEN_ID>/credentials/generate-ice-servers
-
-JSON
-{
-	"iceServers": [
-    {
-      "urls": [
-        "stun:stun.cloudflare.com:3478",
-        "turn:turn.cloudflare.com:3478?transport=udp",
-        "turn:turn.cloudflare.com:3478?transport=tcp",
-        "turns:turn.cloudflare.com:5349?transport=tcp"
-      ],
-      "username": "xxxx",
-      "credential": "yyyy",
-    }
-  ]
-}
-
-*/
