@@ -144,7 +144,10 @@ export function collectPeerConnections({
 
   function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>(async (resolve, reject) => {
-      async function setupPC(state: UserState, connectionId?: string) {
+      async function setupPC(
+        state: UserState,
+        connectionId: string | undefined,
+      ) {
         const now = Date.now();
         if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
           const ice =
@@ -193,11 +196,12 @@ export function collectPeerConnections({
       async function getPeer(
         peer: IPeer<SigType, SigPayload>,
         forceReset?: boolean,
+        connectionId?: string,
       ): Promise<UserState> {
         let state = users.get(peer.userId);
         if (!state || forceReset) {
           const newState: UserState = {
-            connectionId: `conn-${crypto.randomUUID()}`,
+            connectionId: connectionId ?? `conn-${crypto.randomUUID()}`,
             pendingRemoteIce: [],
             peer,
             close() {
@@ -226,7 +230,7 @@ export function collectPeerConnections({
           };
 
           console.log("setupPC on new state");
-          await setupPC(newState);
+          await setupPC(newState, connectionId);
           console.log("Done setupPC on new state");
           state = newState;
 
@@ -237,7 +241,7 @@ export function collectPeerConnections({
           state.expirationTimeout = 0;
           if (!state.pc || state.pc.signalingState === "closed") {
             console.log("setupPC on existing state");
-            await setupPC(state);
+            await setupPC(state, connectionId);
             console.log("Done setupPC on existing state");
           }
         }
@@ -329,7 +333,7 @@ export function collectPeerConnections({
 
         async onMessage(type, payload, from: IPeer<SigType, SigPayload>) {
           console.log("Message in.", type);
-          const state = await getPeer(from);
+          const state = await getPeer(from, false, payload.connectionId);
           console.log("Message in", type, state.pc?.signalingState);
           logLine?.("💬", {
             type,
