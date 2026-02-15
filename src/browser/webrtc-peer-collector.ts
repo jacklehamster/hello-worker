@@ -3,16 +3,20 @@ import { EnterRoom, enterRoom } from "./signal/signal-room";
 
 export type SigType = "offer" | "answer" | "ice" | "request-ice" | "broadcast";
 export type SigPayload = {
+  connectionId?: string;
   offer?: RTCSessionDescriptionInit;
   answer?: RTCSessionDescriptionInit;
   ice?: RTCIceCandidateInit;
 } & Record<string, any>;
 
 type UserState = {
-  pc?: RTCPeerConnection;
-
-  // ICE that arrived before we had remoteDescription
-  pendingRemoteIce: RTCIceCandidateInit[];
+  connection?: {
+    id: string;
+    peerConnectionId?: string;
+    pc: RTCPeerConnection;
+    // ICE that arrived before we had remoteDescription
+    pendingRemoteIce: RTCIceCandidateInit[];
+  };
 
   // the signaling "user" handle so we can send messages
   peer: IPeer<SigType, SigPayload>;
@@ -113,14 +117,14 @@ export function collectPeerConnections({
   }
 
   async function flushRemoteIce(state: UserState) {
-    if (!state.pc?.remoteDescription) return;
+    if (!state.connection?.pc?.remoteDescription) return;
 
-    const queued = state.pendingRemoteIce;
-    state.pendingRemoteIce = [];
+    const queued = state.connection.pendingRemoteIce;
+    state.connection.pendingRemoteIce = [];
 
     for (const ice of queued) {
       try {
-        await state.pc.addIceCandidate(ice);
+        await state.connection.pc.addIceCandidate(ice);
       } catch (e) {
         logLine?.("⚠️ ERROR", {
           error: "add-ice-failed",
@@ -142,7 +146,7 @@ export function collectPeerConnections({
 
   function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>(async (resolve, reject) => {
-      async function setupPC(state: UserState) {
+      async function setupConnection(state: UserState) {
         const now = Date.now();
         if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
           const ice =
@@ -151,26 +155,34 @@ export function collectPeerConnections({
               : iceUrl;
           rtcConfig = await getRtcConfig(ice.url, requestIce);
         }
-        state.pc = new RTCPeerConnection(rtcConfig);
-        // Send local ICE candidates to this peer
-        state.pc.onicecandidate = (ev) => {
-          if (!ev.candidate) return;
-          state.peer.receive("ice", { ice: ev.candidate.toJSON() });
+        state.connection = {
+          id: `conn-${crypto.randomUUID()}`,
+          pc: new RTCPeerConnection(rtcConfig),
+          pendingRemoteIce: [],
         };
 
-        state.pc.onconnectionstatechange = async () => {
+        // Send local ICE candidates to this peer
+        state.connection.pc.onicecandidate = (ev) => {
+          if (!ev.candidate) return;
+          state.peer.receive("ice", {
+            connectionId: state.connection?.id,
+            ice: ev.candidate.toJSON(),
+          });
+        };
+
+        state.connection.pc.onconnectionstatechange = async () => {
           logLine?.("💬", {
             event: "pc-state",
             userId: state.peer.userId,
-            state: state.pc?.connectionState,
+            state: state.connection?.pc?.connectionState,
           });
-          if (state.pc?.connectionState === "failed") {
+          if (state.connection?.pc?.connectionState === "failed") {
             //  reset the connection
             state.close();
             const userState = await getPeer(state.peer, true);
-            if (userState.pc) {
+            if (userState.connection?.pc) {
               receivePeerConnection({
-                pc: userState.pc,
+                pc: userState.connection?.pc,
                 userId: userState.peer.userId,
                 restart: () => userState.close(),
               });
@@ -181,7 +193,7 @@ export function collectPeerConnections({
           }
         };
 
-        return state.pc;
+        return state.connection;
       }
 
       async function getPeer(
@@ -191,11 +203,12 @@ export function collectPeerConnections({
         let state = users.get(peer.userId);
         if (!state || forceReset) {
           const newState: UserState = {
-            pendingRemoteIce: [],
             peer,
             close() {
-              this.pc?.close();
-              this.pc = undefined;
+              if (this.connection) {
+                this.connection.pc?.close();
+                this.connection = undefined;
+              }
               users.delete(peer.userId);
             },
             async reset() {
@@ -204,12 +217,12 @@ export function collectPeerConnections({
               console.log(">>", userState.peer.userId);
 
               setTimeout(async () => {
-                if (!userState.pc) {
+                if (!userState.connection?.pc) {
                   console.log("no pc");
                   return;
                 }
                 receivePeerConnection({
-                  pc: userState.pc,
+                  pc: userState.connection?.pc,
                   userId: userState.peer.userId,
                   restart: () => userState.close(),
                 });
@@ -219,7 +232,7 @@ export function collectPeerConnections({
           };
 
           console.log("setupPC on new state");
-          await setupPC(newState);
+          await setupConnection(newState);
           console.log("Done setupPC on new state");
           state = newState;
 
@@ -228,9 +241,12 @@ export function collectPeerConnections({
         } else if (state) {
           clearTimeout(state.expirationTimeout);
           state.expirationTimeout = 0;
-          if (!state.pc || state.pc.signalingState === "closed") {
+          if (
+            !state.connection?.pc ||
+            state.connection?.pc.signalingState === "closed"
+          ) {
             console.log("setupPC on existing state");
-            await setupPC(state);
+            await setupConnection(state);
             console.log("Done setupPC on existing state");
           }
         }
@@ -241,10 +257,11 @@ export function collectPeerConnections({
       async function makeOffer(user: IPeer<SigType, SigPayload>) {
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
         const state = await getPeer(user);
-        const pc = state.pc;
+        const pc = state.connection?.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
         user.receive("offer", {
+          connectionId: state.connection?.id,
           offer: pc!.localDescription!.toJSON(),
         });
       }
@@ -288,7 +305,7 @@ export function collectPeerConnections({
         onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
           joiningUsers.forEach(async (user) => {
             const state = await getPeer(user, true);
-            const pc = state.pc;
+            const pc = state.connection?.pc;
             if (!pc) {
               logLine?.("👤ℹ️", "no pc: " + user.userId);
               return;
@@ -322,38 +339,45 @@ export function collectPeerConnections({
         async onMessage(type, payload, from: IPeer<SigType, SigPayload>) {
           console.log("Message in.", type);
           const state = await getPeer(from, false);
-          console.log("Message in", type, state.pc?.signalingState);
+          console.log("Message in", type, state.connection?.pc?.signalingState);
           logLine?.("💬", {
             type,
-            preSignalingState: state.pc?.signalingState,
+            preSignalingState: state.connection?.pc?.signalingState,
           });
-          const pc =
-            state.pc && state.pc.signalingState !== "closed"
-              ? state.pc
-              : await setupPC(state);
-          logLine?.("💬", { type, signalingState: pc.signalingState });
+          const connection =
+            state.connection && state.connection.pc.signalingState !== "closed"
+              ? state.connection
+              : await setupConnection(state);
+          logLine?.("💬", {
+            type,
+            signalingState: connection.pc.signalingState,
+          });
 
           if (type === "offer" && payload.offer) {
-            console.log("Got offer. State: " + pc.signalingState);
-            const newPCc =
-              pc.signalingState === "stable" ? await setupPC(state) : pc; //  reset
+            console.log("Got offer. State: " + connection.pc.signalingState);
+            const newConnection =
+              connection.pc.signalingState === "stable"
+                ? await setupConnection(state)
+                : connection; //  reset
+            newConnection.peerConnectionId = payload.connectionId;
             console.log("Got new PC");
             receivePeerConnection({
-              pc: newPCc,
+              pc: newConnection.pc,
               userId: from.userId,
               restart: () => state.close(),
             });
             // Responder: set remote offer
-            await newPCc.setRemoteDescription(payload.offer);
+            await newConnection.pc.setRemoteDescription(payload.offer);
             console.log("Set remote");
 
             // Create and send answer
-            const answer = await newPCc.createAnswer();
-            await newPCc.setLocalDescription(answer);
+            const answer = await newConnection.pc.createAnswer();
+            await newConnection.pc.setLocalDescription(answer);
             console.log("Set answer");
 
             from.receive("answer", {
-              answer: newPCc.localDescription?.toJSON(),
+              connectionId: newConnection.id,
+              answer: newConnection.pc.localDescription?.toJSON(),
             });
 
             // Now safe to apply any queued ICE from this peer
@@ -364,20 +388,32 @@ export function collectPeerConnections({
 
           if (type === "answer" && payload.answer) {
             // Initiator: set remote answer
-            await pc.setRemoteDescription(payload.answer);
+            await connection.pc.setRemoteDescription(payload.answer);
+            connection.peerConnectionId = payload.connectionId;
             await flushRemoteIce(state);
             return;
           }
 
           if (type === "ice" && payload.ice) {
+            if (payload.connectionId !== connection.peerConnectionId) {
+              console.log(
+                "Mismatch peerConnectionID",
+                payload.connectionId,
+                "vs",
+                connection.peerConnectionId,
+                connection,
+              );
+              return;
+            }
+
             // If we don't have remoteDescription yet (or if connectionId doesn't match), queue it
-            if (!pc.remoteDescription) {
-              state.pendingRemoteIce.push(payload.ice);
+            if (!connection.pc.remoteDescription) {
+              connection.pendingRemoteIce.push(payload.ice);
               return;
             }
 
             try {
-              await state.pc?.addIceCandidate(payload.ice);
+              await connection.pc.addIceCandidate(payload.ice);
             } catch (e) {
               logLine?.("⚠️ ERROR", {
                 error: "add-ice-failed",
