@@ -344,7 +344,9 @@ export function collectPeerConnections({
           if (type === "offer" && payload.offer) {
             console.log("Got offer. State: " + pc.signalingState);
             const newPCc =
-              pc.signalingState === "stable" ? await setupPC(state) : pc; //  reset
+              pc.signalingState === "stable"
+                ? await setupPC(state, payload.connectionId)
+                : pc; //  reset
             console.log("Got new PC");
             receivePeerConnection({
               pc: newPCc,
