@@ -2,7 +2,11 @@ import { IPeer } from "./signal/impl/signal-room";
 import { EnterRoom, enterRoom } from "./signal/signal-room";
 
 export type SigType = "offer" | "answer" | "ice" | "request-ice" | "broadcast";
-export type SigPayload = RTCSessionDescriptionInit | RTCIceCandidateInit;
+export type SigPayload = {
+  offer?: RTCSessionDescriptionInit;
+  answer?: RTCSessionDescriptionInit;
+  ice?: RTCIceCandidateInit;
+} & Record<string, any>;
 
 type UserState = {
   pc?: RTCPeerConnection;
@@ -151,7 +155,7 @@ export function collectPeerConnections({
         // Send local ICE candidates to this peer
         state.pc.onicecandidate = (ev) => {
           if (!ev.candidate) return;
-          state.peer.receive("ice", ev.candidate.toJSON());
+          state.peer.receive("ice", { ice: ev.candidate.toJSON() });
         };
 
         state.pc.onconnectionstatechange = async () => {
@@ -234,13 +238,13 @@ export function collectPeerConnections({
         return state;
       }
 
-      async function makeOffer(user: IPeer) {
+      async function makeOffer(user: IPeer<SigType, SigPayload>) {
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
         const state = await getPeer(user);
         const pc = state.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
-        user.receive("offer", pc?.localDescription?.toJSON()!);
+        user.receive("offer", { offer: pc!.localDescription!.toJSON() });
       }
 
       let icePromiseResolve:
@@ -313,7 +317,11 @@ export function collectPeerConnections({
           icePromiseResolve?.(iceUrl);
         },
 
-        async onMessage(type: SigType, payload: any, from: IPeer) {
+        async onMessage(
+          type: SigType,
+          payload: SigPayload,
+          from: IPeer<SigType, SigPayload>,
+        ) {
           console.log("Message in.", type);
           const state = await getPeer(from);
           console.log("Message in", type, state.pc?.signalingState);
@@ -327,7 +335,7 @@ export function collectPeerConnections({
               : await setupPC(state);
           logLine?.("💬", { type, signalingState: pc.signalingState });
 
-          if (type === "offer") {
+          if (type === "offer" && payload.offer) {
             console.log("Got offer. State: " + pc.signalingState);
             const newPCc =
               pc.signalingState === "stable" ? await setupPC(state) : pc; //  reset
@@ -338,9 +346,7 @@ export function collectPeerConnections({
               restart: () => state.close(),
             });
             // Responder: set remote offer
-            await newPCc.setRemoteDescription(
-              payload as RTCSessionDescriptionInit,
-            );
+            await newPCc.setRemoteDescription(payload.offer);
             console.log("Set remote");
 
             // Create and send answer
@@ -348,7 +354,9 @@ export function collectPeerConnections({
             await newPCc.setLocalDescription(answer);
             console.log("Set answer");
 
-            from.receive("answer", newPCc.localDescription?.toJSON()!);
+            from.receive("answer", {
+              answer: newPCc.localDescription?.toJSON(),
+            });
 
             // Now safe to apply any queued ICE from this peer
             await flushRemoteIce(state);
@@ -356,24 +364,22 @@ export function collectPeerConnections({
             return;
           }
 
-          if (type === "answer") {
+          if (type === "answer" && payload.answer) {
             // Initiator: set remote answer
-            await pc.setRemoteDescription(payload as RTCSessionDescriptionInit);
+            await pc.setRemoteDescription(payload.answer);
             await flushRemoteIce(state);
             return;
           }
 
-          if (type === "ice") {
-            const ice = payload as RTCIceCandidateInit;
-
+          if (type === "ice" && payload.ice) {
             // If we don't have remoteDescription yet, queue it
             if (!pc.remoteDescription) {
-              state.pendingRemoteIce.push(ice);
+              state.pendingRemoteIce.push(payload.ice);
               return;
             }
 
             try {
-              await state.pc?.addIceCandidate(ice);
+              await state.pc?.addIceCandidate(payload.ice);
             } catch (e) {
               logLine?.("⚠️ ERROR", {
                 error: "add-ice-failed",
