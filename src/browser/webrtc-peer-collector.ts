@@ -214,11 +214,10 @@ export function collectPeerConnections({
             async reset() {
               newState.close();
               const userState = await getPeer(peer, true);
-              console.log(">>", userState.peer.userId);
 
               setTimeout(async () => {
                 if (!userState.connection?.pc) {
-                  console.log("no pc");
+                  logLine?.("⚠️", "no pc");
                   return;
                 }
                 receivePeerConnection({
@@ -231,9 +230,7 @@ export function collectPeerConnections({
             },
           };
 
-          console.log("setupPC on new state");
           await setupConnection(newState);
-          console.log("Done setupPC on new state");
           state = newState;
 
           //  New user
@@ -245,9 +242,7 @@ export function collectPeerConnections({
             !state.connection?.pc ||
             state.connection?.pc.signalingState === "closed"
           ) {
-            console.log("setupPC on existing state");
             await setupConnection(state);
-            console.log("Done setupPC on existing state");
           }
         }
         state.peer = peer;
@@ -350,9 +345,7 @@ export function collectPeerConnections({
               signalingState: connection.pc.signalingState,
             });
 
-            console.log("Got offer. State: " + connection.pc.signalingState);
             connection.peerConnectionId = payload.connectionId;
-            console.log("Got new PC");
             receivePeerConnection({
               pc: connection.pc,
               userId: from.userId,
@@ -360,12 +353,10 @@ export function collectPeerConnections({
             });
             // Responder: set remote offer
             await connection.pc.setRemoteDescription(payload.offer);
-            console.log("Set remote");
 
             // Create and send answer
             const answer = await connection.pc.createAnswer();
             await connection.pc.setLocalDescription(answer);
-            console.log("Set answer");
 
             from.receive("answer", {
               connectionId: connection.id,
@@ -374,7 +365,6 @@ export function collectPeerConnections({
 
             // Now safe to apply any queued ICE from this peer
             await flushRemoteIce(state);
-            console.log("Flush");
             return;
           }
 
@@ -414,12 +404,12 @@ export function collectPeerConnections({
               connection.peerConnectionId &&
               payload.connectionId !== connection.peerConnectionId
             ) {
-              console.log(
-                "Mismatch peerConnectionID",
-                payload.connectionId,
-                "vs",
-                connection.peerConnectionId,
-                connection,
+              logLine?.(
+                "⚠️",
+                "Mismatch peerConnectionID" +
+                  payload.connectionId +
+                  "vs" +
+                  connection.peerConnectionId,
               );
               return;
             }
