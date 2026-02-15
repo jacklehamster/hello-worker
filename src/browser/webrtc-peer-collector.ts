@@ -31,6 +31,9 @@ type UserState = {
 
 const DEFAULT_ENTER_ROOM = enterRoom;
 
+/**
+ * Collect peers
+ */
 export function collectPeerConnections({
   userId: passedUserId,
   worldId,
