@@ -337,47 +337,39 @@ export function collectPeerConnections({
         },
 
         async onMessage(type, payload, from: IPeer<SigType, SigPayload>) {
-          console.log("Message in.", type);
-          const state = await getPeer(from, false);
-          console.log("Message in", type, state.connection?.pc?.signalingState);
-          logLine?.("💬", {
-            type,
-            preSignalingState: state.connection?.pc?.signalingState,
-          });
-          const connection =
-            state.connection && state.connection.pc.signalingState !== "closed"
-              ? state.connection
-              : await setupConnection(state);
-          logLine?.("💬", {
-            type,
-            signalingState: connection.pc.signalingState,
-          });
-
           if (type === "offer" && payload.offer) {
-            console.log("Got offer. State: " + connection.pc.signalingState);
-            const newConnection =
-              connection.pc.signalingState === "stable"
+            //  Grab state and connection
+            const state = await getPeer(from, false);
+            const connection =
+              !state.connection ||
+              state.connection.pc.signalingState === "stable"
                 ? await setupConnection(state)
-                : connection; //  reset
-            newConnection.peerConnectionId = payload.connectionId;
+                : state.connection; //  reset
+            logLine?.("💬", {
+              type,
+              signalingState: connection.pc.signalingState,
+            });
+
+            console.log("Got offer. State: " + connection.pc.signalingState);
+            connection.peerConnectionId = payload.connectionId;
             console.log("Got new PC");
             receivePeerConnection({
-              pc: newConnection.pc,
+              pc: connection.pc,
               userId: from.userId,
               restart: () => state.close(),
             });
             // Responder: set remote offer
-            await newConnection.pc.setRemoteDescription(payload.offer);
+            await connection.pc.setRemoteDescription(payload.offer);
             console.log("Set remote");
 
             // Create and send answer
-            const answer = await newConnection.pc.createAnswer();
-            await newConnection.pc.setLocalDescription(answer);
+            const answer = await connection.pc.createAnswer();
+            await connection.pc.setLocalDescription(answer);
             console.log("Set answer");
 
             from.receive("answer", {
-              connectionId: newConnection.id,
-              answer: newConnection.pc.localDescription?.toJSON(),
+              connectionId: connection.id,
+              answer: connection.pc.localDescription?.toJSON(),
             });
 
             // Now safe to apply any queued ICE from this peer
@@ -387,6 +379,17 @@ export function collectPeerConnections({
           }
 
           if (type === "answer" && payload.answer) {
+            const state = await getPeer(from, false);
+            const connection =
+              state.connection &&
+              state.connection.pc.signalingState !== "closed"
+                ? state.connection
+                : await setupConnection(state);
+            logLine?.("💬", {
+              type,
+              signalingState: connection.pc.signalingState,
+            });
+
             // Initiator: set remote answer
             await connection.pc.setRemoteDescription(payload.answer);
             connection.peerConnectionId = payload.connectionId;
@@ -395,6 +398,18 @@ export function collectPeerConnections({
           }
 
           if (type === "ice" && payload.ice) {
+            //  Grab state and connection
+            const state = await getPeer(from, false);
+            const connection =
+              !state.connection ||
+              state.connection.pc.signalingState === "stable"
+                ? await setupConnection(state)
+                : state.connection; //  reset
+            logLine?.("💬", {
+              type,
+              signalingState: connection.pc.signalingState,
+            });
+
             if (payload.connectionId !== connection.peerConnectionId) {
               console.log(
                 "Mismatch peerConnectionID",
