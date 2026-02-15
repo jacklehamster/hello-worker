@@ -410,7 +410,10 @@ export function collectPeerConnections({
               signalingState: connection.pc.signalingState,
             });
 
-            if (payload.connectionId !== connection.peerConnectionId) {
+            if (
+              connection.peerConnectionId &&
+              payload.connectionId !== connection.peerConnectionId
+            ) {
               console.log(
                 "Mismatch peerConnectionID",
                 payload.connectionId,
@@ -422,7 +425,11 @@ export function collectPeerConnections({
             }
 
             // If we don't have remoteDescription yet (or if connectionId doesn't match), queue it
-            if (!connection.pc.remoteDescription) {
+            if (
+              !connection.pc.remoteDescription ||
+              !connection.peerConnectionId
+            ) {
+              connection.peerConnectionId = payload.connectionId;
               connection.pendingRemoteIce.push(payload.ice);
               return;
             }
