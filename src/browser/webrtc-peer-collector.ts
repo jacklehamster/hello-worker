@@ -3,12 +3,14 @@ import { EnterRoom, enterRoom } from "./signal/signal-room";
 
 export type SigType = "offer" | "answer" | "ice" | "request-ice" | "broadcast";
 export type SigPayload = {
+  connectionId?: string;
   offer?: RTCSessionDescriptionInit;
   answer?: RTCSessionDescriptionInit;
   ice?: RTCIceCandidateInit;
 } & Record<string, any>;
 
 type UserState = {
+  connectionId: string;
   pc?: RTCPeerConnection;
 
   // ICE that arrived before we had remoteDescription
@@ -142,7 +144,7 @@ export function collectPeerConnections({
 
   function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>(async (resolve, reject) => {
-      async function setupPC(state: UserState) {
+      async function setupPC(state: UserState, connectionId?: string) {
         const now = Date.now();
         if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
           const ice =
@@ -152,6 +154,10 @@ export function collectPeerConnections({
           rtcConfig = await getRtcConfig(ice.url, requestIce);
         }
         state.pc = new RTCPeerConnection(rtcConfig);
+        if (connectionId && state.connectionId !== connectionId) {
+          state.connectionId = connectionId;
+          state.pendingRemoteIce.length = 0;
+        }
         // Send local ICE candidates to this peer
         state.pc.onicecandidate = (ev) => {
           if (!ev.candidate) return;
@@ -191,6 +197,7 @@ export function collectPeerConnections({
         let state = users.get(peer.userId);
         if (!state || forceReset) {
           const newState: UserState = {
+            connectionId: `conn-${crypto.randomUUID()}`,
             pendingRemoteIce: [],
             peer,
             close() {
@@ -244,7 +251,10 @@ export function collectPeerConnections({
         const pc = state.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
-        user.receive("offer", { offer: pc!.localDescription!.toJSON() });
+        user.receive("offer", {
+          connectionId: state.connectionId,
+          offer: pc!.localDescription!.toJSON(),
+        });
       }
 
       let icePromiseResolve:
@@ -317,11 +327,7 @@ export function collectPeerConnections({
           icePromiseResolve?.(iceUrl);
         },
 
-        async onMessage(
-          type: SigType,
-          payload: SigPayload,
-          from: IPeer<SigType, SigPayload>,
-        ) {
+        async onMessage(type, payload, from: IPeer<SigType, SigPayload>) {
           console.log("Message in.", type);
           const state = await getPeer(from);
           console.log("Message in", type, state.pc?.signalingState);
@@ -355,6 +361,7 @@ export function collectPeerConnections({
             console.log("Set answer");
 
             from.receive("answer", {
+              connectionId: state.connectionId,
               answer: newPCc.localDescription?.toJSON(),
             });
 
@@ -366,13 +373,19 @@ export function collectPeerConnections({
 
           if (type === "answer" && payload.answer) {
             // Initiator: set remote answer
+            console.log(payload.connectionId, "<=>", state.connectionId);
             await pc.setRemoteDescription(payload.answer);
             await flushRemoteIce(state);
             return;
           }
 
           if (type === "ice" && payload.ice) {
-            // If we don't have remoteDescription yet, queue it
+            //  Discard mismatching ice
+            if (state.connectionId !== payload.connectionId) {
+              return;
+            }
+
+            // If we don't have remoteDescription yet (or if connectionId doesn't match), queue it
             if (!pc.remoteDescription) {
               state.pendingRemoteIce.push(payload.ice);
               return;
