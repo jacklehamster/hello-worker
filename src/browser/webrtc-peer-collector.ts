@@ -338,7 +338,7 @@ export function collectPeerConnections({
           const pc =
             state.pc && state.pc.signalingState !== "closed"
               ? state.pc
-              : await setupPC(state);
+              : await setupPC(state, payload.connectionId);
           logLine?.("💬", { type, signalingState: pc.signalingState });
 
           if (type === "offer" && payload.offer) {
