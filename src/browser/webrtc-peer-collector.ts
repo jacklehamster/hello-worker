@@ -206,7 +206,7 @@ export function collectPeerConnections({
             peer,
             close() {
               if (this.connection) {
-                this.connection.pc?.close();
+                this.connection.pc.close();
                 this.connection = undefined;
               }
               users.delete(peer.userId);
@@ -226,7 +226,7 @@ export function collectPeerConnections({
                   restart: () => userState.close(),
                 });
                 await makeOffer(userState.peer);
-              }, 3000);
+              }, 1000);
             },
           };
 
