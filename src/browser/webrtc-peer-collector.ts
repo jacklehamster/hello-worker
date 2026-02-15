@@ -9,14 +9,16 @@ export type SigPayload = {
   ice?: RTCIceCandidateInit;
 } & Record<string, any>;
 
+interface Connection {
+  id: string;
+  peerConnectionId?: string;
+  pc: RTCPeerConnection;
+  // ICE that arrived before we had remoteDescription
+  pendingRemoteIce: RTCIceCandidateInit[];
+}
+
 type UserState = {
-  connection?: {
-    id: string;
-    peerConnectionId?: string;
-    pc: RTCPeerConnection;
-    // ICE that arrived before we had remoteDescription
-    pendingRemoteIce: RTCIceCandidateInit[];
-  };
+  connection?: Connection;
 
   // the signaling "user" handle so we can send messages
   peer: IPeer<SigType, SigPayload>;
@@ -24,6 +26,7 @@ type UserState = {
   expirationTimeout?: number;
   close(): void;
   reset(): void;
+  connectionPromise?: Promise<Connection>;
 };
 
 const DEFAULT_ENTER_ROOM = enterRoom;
@@ -147,53 +150,57 @@ export function collectPeerConnections({
   function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>(async (resolve, reject) => {
       async function setupConnection(state: UserState) {
-        const now = Date.now();
-        if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
-          const ice =
-            !iceUrl || iceUrl.expiration - now < 2000
-              ? await requestIce()
-              : iceUrl;
-          rtcConfig = await getRtcConfig(ice.url, requestIce);
-        }
-        state.connection = {
-          id: `conn-${crypto.randomUUID()}`,
-          pc: new RTCPeerConnection(rtcConfig),
-          pendingRemoteIce: [],
-        };
-
-        // Send local ICE candidates to this peer
-        state.connection.pc.onicecandidate = (ev) => {
-          if (!ev.candidate) return;
-          state.peer.receive("ice", {
-            connectionId: state.connection?.id,
-            ice: ev.candidate.toJSON(),
-          });
-        };
-
-        state.connection.pc.onconnectionstatechange = async () => {
-          logLine?.("💬", {
-            event: "pc-state",
-            userId: state.peer.userId,
-            state: state.connection?.pc?.connectionState,
-          });
-          if (state.connection?.pc?.connectionState === "failed") {
-            //  reset the connection
-            state.close();
-            const userState = await getPeer(state.peer, true);
-            if (userState.connection?.pc) {
-              receivePeerConnection({
-                pc: userState.connection?.pc,
-                userId: userState.peer.userId,
-                restart: () => userState.close(),
-              });
-            } else {
-              logLine?.("👤ℹ️", "no pc: " + userState.peer.userId);
+        return (state.connectionPromise = new Promise<Connection>(
+          async (resolve) => {
+            const now = Date.now();
+            if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
+              const ice =
+                !iceUrl || iceUrl.expiration - now < 2000
+                  ? await requestIce()
+                  : iceUrl;
+              rtcConfig = await getRtcConfig(ice.url, requestIce);
             }
-            return;
-          }
-        };
+            state.connection = {
+              id: `conn-${crypto.randomUUID()}`,
+              pc: new RTCPeerConnection(rtcConfig),
+              pendingRemoteIce: [],
+            };
 
-        return state.connection;
+            // Send local ICE candidates to this peer
+            state.connection.pc.onicecandidate = (ev) => {
+              if (!ev.candidate) return;
+              state.peer.receive("ice", {
+                connectionId: state.connection?.id,
+                ice: ev.candidate.toJSON(),
+              });
+            };
+
+            state.connection.pc.onconnectionstatechange = async () => {
+              logLine?.("💬", {
+                event: "pc-state",
+                userId: state.peer.userId,
+                state: state.connection?.pc?.connectionState,
+              });
+              if (state.connection?.pc?.connectionState === "failed") {
+                //  reset the connection
+                state.close();
+                const userState = await getPeer(state.peer, true);
+                if (userState.connection?.pc) {
+                  receivePeerConnection({
+                    pc: userState.connection?.pc,
+                    userId: userState.peer.userId,
+                    restart: () => userState.close(),
+                  });
+                } else {
+                  logLine?.("👤ℹ️", "no pc: " + userState.peer.userId);
+                }
+                return;
+              }
+            };
+
+            resolve(state.connection);
+          },
+        ));
       }
 
       async function getPeer(
@@ -391,10 +398,11 @@ export function collectPeerConnections({
             //  Grab state and connection
             const state = await getPeer(from, false);
             const connection =
-              !state.connection ||
-              state.connection.pc.signalingState === "stable"
-                ? await setupConnection(state)
-                : state.connection; //  reset
+              state.connection ?? (await state.connectionPromise);
+            if (!connection) {
+              logLine?.("⚠️", "No connection");
+              return;
+            }
             logLine?.("💬", {
               type,
               signalingState: connection.pc.signalingState,
