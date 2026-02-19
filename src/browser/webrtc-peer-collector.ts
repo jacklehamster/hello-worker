@@ -129,49 +129,51 @@ export function collectPeerConnections({
         if (state.connectionPromise) {
           return state.connectionPromise;
         }
-        return (state.connectionPromise = new Promise<Connection>(
-          async (resolve) => {
-            state.connection = {
-              id: `conn-${crypto.randomUUID()}`,
-              pc: new RTCPeerConnection(await rtcConfigProvider.getRtcConfig()),
-              pendingRemoteIce: [],
-            };
+        const promise = new Promise<Connection>(async (resolve) => {
+          state.connection = {
+            id: `conn-${crypto.randomUUID()}`,
+            pc: new RTCPeerConnection(await rtcConfigProvider.getRtcConfig()),
+            pendingRemoteIce: [],
+          };
 
-            // Send local ICE candidates to this peer
-            state.connection.pc.onicecandidate = (ev) => {
-              if (!ev.candidate) return;
-              state.peer.receive("ice", {
-                connectionId: state.connection?.id,
-                ice: ev.candidate.toJSON(),
-              });
-            };
+          // Send local ICE candidates to this peer
+          state.connection.pc.onicecandidate = (ev) => {
+            if (!ev.candidate) return;
+            state.peer.receive("ice", {
+              connectionId: state.connection?.id,
+              ice: ev.candidate.toJSON(),
+            });
+          };
 
-            state.connection.pc.onconnectionstatechange = async () => {
-              logLine?.("💬", {
-                event: "pc-state",
-                userId: state.peer.userId,
-                state: state.connection?.pc?.connectionState,
-              });
-              if (state.connection?.pc?.connectionState === "failed") {
-                //  reset the connection
-                state.close();
-                const userState = await getPeer(state.peer, true);
-                if (userState.connection?.pc) {
-                  receivePeerConnection({
-                    pc: userState.connection?.pc,
-                    userId: userState.peer.userId,
-                    restart: () => userState.close(),
-                  });
-                } else {
-                  logLine?.("👤ℹ️", "no pc: " + userState.peer.userId);
-                }
-                return;
+          state.connection.pc.onconnectionstatechange = async () => {
+            logLine?.("💬", {
+              event: "pc-state",
+              userId: state.peer.userId,
+              state: state.connection?.pc?.connectionState,
+            });
+            if (state.connection?.pc?.connectionState === "failed") {
+              //  reset the connection
+              state.close();
+              const userState = await getPeer(state.peer, true);
+              if (userState.connection?.pc) {
+                receivePeerConnection({
+                  pc: userState.connection?.pc,
+                  userId: userState.peer.userId,
+                  restart: () => userState.close(),
+                });
+              } else {
+                logLine?.("👤ℹ️", "no pc: " + userState.peer.userId);
               }
-            };
+              return;
+            }
+          };
 
-            resolve(state.connection);
-          },
-        ));
+          resolve(state.connection);
+        });
+        state.connectionPromise = promise;
+        await promise;
+        state.connectionPromise = undefined;
+        return promise;
       }
 
       async function getPeer(
