@@ -204,7 +204,7 @@ export function collectPeerConnections({
                   restart: () => userState.close(),
                 });
                 await makeOffer(userState.peer);
-              }, 1000);
+              }, 100);
             },
           };
           state = newState;
