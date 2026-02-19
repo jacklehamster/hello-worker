@@ -1,5 +1,7 @@
+import { IceUrlProvider } from "./utils/ice-url-provider";
 import { IPeer } from "./signal/impl/signal-room";
 import { EnterRoom, enterRoom } from "./signal/signal-room";
+import { RTCConfigProvider } from "./utils/rtc-config";
 
 export type SigType = "offer" | "answer" | "ice" | "request-ice" | "broadcast";
 export type SigPayload = {
@@ -39,9 +41,6 @@ export function collectPeerConnections({
   worldId,
   receivePeerConnection,
   peerlessUserExpiration = 5000,
-  fallbackRtcConfig = {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-  },
   enterRoomFunction: enterRoom = DEFAULT_ENTER_ROOM,
   logLine,
   onLeaveUser,
@@ -52,7 +51,6 @@ export function collectPeerConnections({
 }: {
   userId?: string;
   worldId: string;
-  fallbackRtcConfig?: RTCConfiguration;
   enterRoomFunction?: EnterRoom<SigType, SigPayload>;
   onLeaveUser?: (userId: string) => void;
   logLine?: (direction: string, obj?: any) => void;
@@ -73,11 +71,6 @@ export function collectPeerConnections({
 }) {
   const userId = passedUserId ?? `user-${crypto.randomUUID()}`;
   const users: Map<string, UserState> = new Map();
-  let iceUrl: { url: string; expiration: number } | undefined = undefined;
-  let rtcConfig: RTCConfiguration & { timestamp: number } = {
-    ...fallbackRtcConfig,
-    timestamp: Date.now(),
-  };
 
   const roomsEntered = new Map<
     string,
@@ -88,29 +81,6 @@ export function collectPeerConnections({
       broadcast: <P extends any>(payload: P) => void;
     }
   >();
-
-  async function getRtcConfig(
-    iceUrl: string,
-    retryIce: () => Promise<{ url: string }>,
-  ): Promise<RTCConfiguration & { timestamp: number }> {
-    if (iceUrl) {
-      let retries = 3;
-      for (let r = 0; r < retries; r++) {
-        try {
-          const r = await fetch(iceUrl);
-          if (!r.ok) throw new Error(`ICE endpoint failed: ${r.status}`);
-          rtcConfig = (await r.json()) as RTCConfiguration & {
-            timestamp: number;
-          };
-          return rtcConfig;
-        } catch (e) {
-          console.warn("Failed fetching iceUrl");
-        }
-        iceUrl = (await retryIce()).url;
-      }
-    }
-    return rtcConfig;
-  }
 
   function leaveUser(userId: string) {
     onLeaveUser?.(userId);
@@ -141,6 +111,9 @@ export function collectPeerConnections({
     }
   }
 
+  const iceUrlProvider = new IceUrlProvider();
+  const rtcConfigProvider = new RTCConfigProvider(iceUrlProvider);
+
   function exit({ room, host }: { room: string; host: string }) {
     const key = `${host}/room/${room}`;
     const session = roomsEntered.get(key);
@@ -153,19 +126,14 @@ export function collectPeerConnections({
   function enter({ room, host }: { room: string; host: string }) {
     return new Promise<void>(async (resolve, reject) => {
       async function setupConnection(state: UserState) {
+        if (state.connectionPromise) {
+          return state.connectionPromise;
+        }
         return (state.connectionPromise = new Promise<Connection>(
           async (resolve) => {
-            const now = Date.now();
-            if (now - (rtcConfig?.timestamp ?? 0) > 10000) {
-              const ice =
-                !iceUrl || iceUrl.expiration - now < 2000
-                  ? await requestIce()
-                  : iceUrl;
-              rtcConfig = await getRtcConfig(ice.url, requestIce);
-            }
             state.connection = {
               id: `conn-${crypto.randomUUID()}`,
-              pc: new RTCPeerConnection(rtcConfig),
+              pc: new RTCPeerConnection(await rtcConfigProvider.getRtcConfig()),
               pendingRemoteIce: [],
             };
 
@@ -239,9 +207,9 @@ export function collectPeerConnections({
               }, 1000);
             },
           };
+          state = newState;
 
           await setupConnection(newState);
-          state = newState;
 
           //  New user
           users.set(state.peer.userId, state);
@@ -269,20 +237,6 @@ export function collectPeerConnections({
           connectionId: state.connection?.id,
           offer: pc!.localDescription!.toJSON(),
         });
-      }
-
-      let icePromiseResolve:
-        | undefined
-        | ((url: { url: string; expiration: number }) => void);
-      async function requestIce() {
-        const iceUrl = await new Promise<{ url: string; expiration: number }>(
-          (resolve) => {
-            icePromiseResolve = resolve;
-            sendToServer("request-ice");
-          },
-        );
-        icePromiseResolve = undefined;
-        return iceUrl;
       }
 
       const { exitRoom, sendToServer } = enterRoom({
@@ -337,8 +291,7 @@ export function collectPeerConnections({
         },
 
         onIceUrl(url: string, expiration: number) {
-          iceUrl = { url, expiration };
-          icePromiseResolve?.(iceUrl);
+          iceUrlProvider.receiveIce(url, expiration);
         },
 
         async onMessage(type, payload, from: IPeer<SigType, SigPayload>) {
@@ -452,8 +405,14 @@ export function collectPeerConnections({
           }
         },
       });
+
+      iceUrlProvider.addRequester(sendToServer);
+
       roomsEntered.set(`${host}/room/${room}`, {
-        exitRoom,
+        exitRoom: () => {
+          exitRoom();
+          iceUrlProvider.removeRequester(sendToServer);
+        },
         room,
         host,
         broadcast: (payload) => sendToServer("broadcast", payload),
