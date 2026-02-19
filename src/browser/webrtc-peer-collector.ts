@@ -191,9 +191,9 @@ export function collectPeerConnections({
             },
             async reset() {
               newState.close();
-              const userState = await getPeer(peer, true);
 
               setTimeout(async () => {
+                const userState = await getPeer(peer, true);
                 if (!userState.connection?.pc) {
                   logLine?.("⚠️", "no pc");
                   return;
