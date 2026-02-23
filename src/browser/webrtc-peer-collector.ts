@@ -279,7 +279,7 @@ export function collectPeerConnections({
               userId: user.userId,
               restart: () => state.close(),
             });
-            console.log(">>", user, "|", selfJoined);
+            console.log(">>", user, "|", user.joined - selfJoined);
             await makeOffer(user.userId);
           });
         },
