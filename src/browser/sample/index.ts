@@ -37,7 +37,7 @@ export function clearLog() {
 }
 
 export function testWelcome() {
-  const { exitRoom } = enterRoom({
+  const { exitRoom, send } = enterRoom({
     userId: crypto.randomUUID(),
     worldId: "signal-test",
     room: "test",
@@ -57,7 +57,7 @@ export function testWelcome() {
     },
     onPeerJoined: (users) => {
       users.forEach((user) =>
-        user.receive("welcome", { note: welcomeEl.value }),
+        send("welcome", user.userId, { note: welcomeEl.value }),
       );
     },
     onPeerLeft: (info) => {
@@ -65,7 +65,7 @@ export function testWelcome() {
     },
     onMessage: (type, payload, user) => {
       if (type === "welcome") {
-        user.receive("thanks", { note: "Thank you! 🙏" });
+        send("thanks", user.userId, { note: "Thank you! 🙏" });
       }
     },
     logLine,
