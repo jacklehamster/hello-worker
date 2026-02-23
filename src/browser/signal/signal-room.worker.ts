@@ -6,7 +6,7 @@ export type RoomEvent<T extends string = string, P = any> =
   | { kind: "open" }
   | { kind: "close"; ev: Pick<CloseEvent, "code" | "reason" | "wasClean"> }
   | { kind: "error" }
-  | { kind: "peer-joined"; users: { userId: string }[] }
+  | { kind: "peer-joined"; users: { userId: string; joined: number }[] }
   | { kind: "peer-left"; users: { userId: string }[] }
   | { kind: "ice-server"; url: string; expiration: number }
   | {
@@ -73,7 +73,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       onPeerJoined: (users: IPeer[]) => {
         emit({
           kind: "peer-joined",
-          users: users.map(({ userId }) => ({ userId })),
+          users: users.map(({ userId, joined }) => ({ userId, joined })),
         });
       },
       onPeerLeft: (users: { userId: string }[]) => {

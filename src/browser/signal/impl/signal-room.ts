@@ -1,6 +1,6 @@
 export interface IPeer {
   userId: string;
-  joined?: number;
+  joined: number;
 }
 
 type OutMessage = { type: string; to: string; payload: any };
@@ -149,13 +149,6 @@ export function enterRoom<T extends string, P = any>(params: {
     const joined: IPeer[] = [];
     const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
-
-    const selfPeer = updatedUsers.filter((peer) => peer.userId === userId)[0];
-    if (!selfPeer) {
-      logLine?.("⚠️", "Cannot find self in updated users");
-      return;
-    }
-    const selfJoined = selfPeer.joined;
 
     updatedUsers.forEach(({ userId: pUserId, joined: joinedTime }) => {
       if (pUserId === userId) return;

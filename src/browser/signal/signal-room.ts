@@ -76,7 +76,9 @@ export function enterRoom<T extends string, P = any>({
       onClose?.(ev.ev);
     } else if (ev.kind === "error") onError?.();
     else if (ev.kind === "peer-joined")
-      onPeerJoined(ev.users.map((ev) => ({ userId: ev.userId })));
+      onPeerJoined(
+        ev.users.map((ev) => ({ userId: ev.userId, joined: ev.joined })),
+      );
     else if (ev.kind === "peer-left") onPeerLeft(ev.users);
     else if (ev.kind === "ice-server") onIceUrl?.(ev.url, ev.expiration);
     else if (ev.kind === "message")
