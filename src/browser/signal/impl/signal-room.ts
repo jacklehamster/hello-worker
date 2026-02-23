@@ -17,7 +17,7 @@ export function enterRoom<T extends string, P = any>(params: {
   onClose?: (ev: Pick<CloseEvent, "code" | "reason" | "wasClean">) => void;
   onError?: () => void;
   logLine?: (direction: string, obj?: any) => void;
-  onPeerJoined(users: IPeer[]): void;
+  onPeerJoined(users: IPeer[], selfJoined: number): void;
   onPeerLeft(users: { userId: string }[]): void;
   onIceUrl?(url: string, expiration: number): void;
   onMessage(type: T, payload: P, from: string): void;
@@ -150,6 +150,13 @@ export function enterRoom<T extends string, P = any>(params: {
     const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
 
+    const selfPeer = updatedUsers.filter((peer) => peer.userId === userId)[0];
+    if (!selfPeer) {
+      logLine?.("⚠️", "Cannot find self in updated users");
+      return;
+    }
+    const selfJoined = selfPeer.joined;
+
     updatedUsers.forEach(({ userId: pUserId, joined: joinedTime }) => {
       if (pUserId === userId) return;
       if (
@@ -177,7 +184,7 @@ export function enterRoom<T extends string, P = any>(params: {
     }
 
     //  Notify peer joined first then peer left. (avoid disconnect in case the peer leaving / joining is on the same user).
-    if (joined.length) params.onPeerJoined(joined);
+    if (joined.length) params.onPeerJoined(joined, selfJoined);
     if (left.length) params.onPeerLeft(left);
   }
 

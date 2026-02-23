@@ -6,7 +6,11 @@ export type RoomEvent<T extends string = string, P = any> =
   | { kind: "open" }
   | { kind: "close"; ev: Pick<CloseEvent, "code" | "reason" | "wasClean"> }
   | { kind: "error" }
-  | { kind: "peer-joined"; users: { userId: string; joined: number }[] }
+  | {
+      kind: "peer-joined";
+      users: { userId: string; joined: number }[];
+      joined: number;
+    }
   | { kind: "peer-left"; users: { userId: string }[] }
   | { kind: "ice-server"; url: string; expiration: number }
   | {
@@ -70,10 +74,11 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
         console.debug(`[signal-room.worker] ${direction}`, obj);
         emit({ kind: "log", direction, obj });
       },
-      onPeerJoined: (users: IPeer[]) => {
+      onPeerJoined: (users: IPeer[], selfJoined: number) => {
         emit({
           kind: "peer-joined",
           users: users.map(({ userId, joined }) => ({ userId, joined })),
+          joined: selfJoined,
         });
       },
       onPeerLeft: (users: { userId: string }[]) => {

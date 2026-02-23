@@ -26,7 +26,7 @@ export function enterRoom<T extends string, P = any>({
   onOpen?: () => void;
   onClose?: (ev: Pick<CloseEvent, "code" | "reason" | "wasClean">) => void;
   onError?: () => void;
-  onPeerJoined: (users: IPeer[]) => void;
+  onPeerJoined: (users: IPeer[], selfJoined: number) => void;
   onPeerLeft: (users: { userId: string }[]) => void;
   onIceUrl?(url: string, expiration: number): void;
   onMessage: (type: T, payload: P, from: string) => void;
@@ -78,6 +78,7 @@ export function enterRoom<T extends string, P = any>({
     else if (ev.kind === "peer-joined")
       onPeerJoined(
         ev.users.map((ev) => ({ userId: ev.userId, joined: ev.joined })),
+        ev.joined,
       );
     else if (ev.kind === "peer-left") onPeerLeft(ev.users);
     else if (ev.kind === "ice-server") onIceUrl?.(ev.url, ev.expiration);

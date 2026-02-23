@@ -264,7 +264,7 @@ export function collectPeerConnections({
         },
 
         // Existing peers initiate to the newcomer
-        onPeerJoined(joiningUsers: IPeer[]) {
+        onPeerJoined(joiningUsers: IPeer[], selfJoined: number) {
           joiningUsers.forEach(async (user) => {
             const state = await getPeer(user.userId, true);
             state.joined = user.joined;
@@ -279,7 +279,7 @@ export function collectPeerConnections({
               userId: user.userId,
               restart: () => state.close(),
             });
-            console.log(">>", user);
+            console.log(">>", user, "|", selfJoined);
             await makeOffer(user.userId);
           });
         },
