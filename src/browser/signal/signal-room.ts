@@ -26,10 +26,10 @@ export function enterRoom<T extends string, P = any>({
   onOpen?: () => void;
   onClose?: (ev: Pick<CloseEvent, "code" | "reason" | "wasClean">) => void;
   onError?: () => void;
-  onPeerJoined: (users: IPeer<T, P>[]) => void;
+  onPeerJoined: (users: IPeer[]) => void;
   onPeerLeft: (users: { userId: string }[]) => void;
   onIceUrl?(url: string, expiration: number): void;
-  onMessage: (type: T, payload: P, from: IPeer<T, P>) => void;
+  onMessage: (type: T, payload: P, from: string) => void;
   logLine?: (direction: string, obj?: any) => void;
 
   // Pass the URL to your worker file (bundler will handle it)
@@ -80,7 +80,7 @@ export function enterRoom<T extends string, P = any>({
     else if (ev.kind === "peer-left") onPeerLeft(ev.users);
     else if (ev.kind === "ice-server") onIceUrl?.(ev.url, ev.expiration);
     else if (ev.kind === "message")
-      onMessage(ev.type, ev.payload, { userId: ev.fromUserId });
+      onMessage(ev.type, ev.payload, ev.fromUserId);
     else if (ev.kind === "log") logLine?.(ev.direction, ev.obj);
   };
 

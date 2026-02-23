@@ -65,7 +65,7 @@ export function testWelcome() {
     },
     onMessage: (type, payload, user) => {
       if (type === "welcome") {
-        send("thanks", user.userId, { note: "Thank you! 🙏" });
+        send("thanks", user, { note: "Thank you! 🙏" });
       }
     },
     logLine,

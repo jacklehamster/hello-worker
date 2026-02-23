@@ -23,7 +23,8 @@ type UserState = {
   connection?: Connection;
 
   // the signaling "user" handle so we can send messages
-  peer: IPeer<SigType, SigPayload>;
+  peer: string;
+  joined?: number;
 
   expirationTimeout?: number;
   close(): void;
@@ -104,7 +105,7 @@ export function collectPeerConnections({
       } catch (e) {
         logLine?.("⚠️ ERROR", {
           error: "add-ice-failed",
-          userId: state.peer.userId,
+          userId: state.peer,
           detail: String(e),
         });
       }
@@ -139,7 +140,7 @@ export function collectPeerConnections({
           // Send local ICE candidates to this peer
           state.connection.pc.onicecandidate = (ev) => {
             if (!ev.candidate) return;
-            send("ice", state.peer.userId, {
+            send("ice", state.peer, {
               connectionId: state.connection?.id,
               ice: ev.candidate.toJSON(),
             });
@@ -148,7 +149,7 @@ export function collectPeerConnections({
           state.connection.pc.onconnectionstatechange = async () => {
             logLine?.("💬", {
               event: "pc-state",
-              userId: state.peer.userId,
+              userId: state.peer,
               state: state.connection?.pc?.connectionState,
             });
             if (state.connection?.pc?.connectionState === "failed") {
@@ -158,11 +159,11 @@ export function collectPeerConnections({
               if (userState.connection?.pc) {
                 receivePeerConnection({
                   pc: userState.connection?.pc,
-                  userId: userState.peer.userId,
+                  userId: userState.peer,
                   restart: () => userState.close(),
                 });
               } else {
-                logLine?.("👤ℹ️", "no pc: " + userState.peer.userId);
+                logLine?.("👤ℹ️", "no pc: " + userState.peer);
               }
               return;
             }
@@ -177,10 +178,10 @@ export function collectPeerConnections({
       }
 
       async function getPeer(
-        peer: IPeer<SigType, SigPayload>,
+        peer: string,
         forceReset?: boolean,
       ): Promise<UserState> {
-        let state = users.get(peer.userId);
+        let state = users.get(peer);
         if (!state || forceReset) {
           const newState: UserState = {
             peer,
@@ -189,7 +190,7 @@ export function collectPeerConnections({
                 this.connection.pc.close();
                 this.connection = undefined;
               }
-              users.delete(peer.userId);
+              users.delete(peer);
             },
             async reset() {
               newState.close();
@@ -202,7 +203,7 @@ export function collectPeerConnections({
                 }
                 receivePeerConnection({
                   pc: userState.connection?.pc,
-                  userId: userState.peer.userId,
+                  userId: userState.peer,
                   restart: () => userState.close(),
                 });
                 await makeOffer(userState.peer);
@@ -214,7 +215,7 @@ export function collectPeerConnections({
           await setupConnection(newState);
 
           //  New user
-          users.set(state.peer.userId, state);
+          users.set(state.peer, state);
         } else if (state) {
           clearTimeout(state.expirationTimeout);
           state.expirationTimeout = 0;
@@ -229,15 +230,15 @@ export function collectPeerConnections({
         return state;
       }
 
-      async function makeOffer(user: IPeer<SigType, SigPayload>) {
+      async function makeOffer(userId: string) {
         // Offer flow: createOffer -> setLocalDescription -> send localDescription
-        const state = await getPeer(user);
+        const state = await getPeer(userId);
         const pc = state.connection?.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
-        send("offer", user.userId, {
+        send("offer", userId, {
           connectionId: state.connection?.id,
-          offer: pc!.localDescription!.toJSON(),
+          offer: pc?.localDescription?.toJSON(),
         });
       }
 
@@ -263,9 +264,10 @@ export function collectPeerConnections({
         },
 
         // Existing peers initiate to the newcomer
-        onPeerJoined(joiningUsers: IPeer<SigType, SigPayload>[]) {
+        onPeerJoined(joiningUsers: IPeer[]) {
           joiningUsers.forEach(async (user) => {
-            const state = await getPeer(user, true);
+            const state = await getPeer(user.userId, true);
+            state.joined = user.joined;
             const pc = state.connection?.pc;
             if (!pc) {
               logLine?.("👤ℹ️", "no pc: " + user.userId);
@@ -277,7 +279,8 @@ export function collectPeerConnections({
               userId: user.userId,
               restart: () => state.close(),
             });
-            await makeOffer(user);
+            console.log(">>", user);
+            await makeOffer(user.userId);
           });
         },
 
@@ -296,7 +299,7 @@ export function collectPeerConnections({
           iceUrlProvider.receiveIce(url, expiration);
         },
 
-        async onMessage(type, payload, from: IPeer<SigType, SigPayload>) {
+        async onMessage(type, payload, from: string) {
           if (type === "offer" && payload.offer) {
             //  Grab state and connection
             const state = await getPeer(from, false);
@@ -313,7 +316,7 @@ export function collectPeerConnections({
             connection.peerConnectionId = payload.connectionId;
             receivePeerConnection({
               pc: connection.pc,
-              userId: from.userId,
+              userId: from,
               restart: () => state.close(),
             });
             // Responder: set remote offer
@@ -323,7 +326,7 @@ export function collectPeerConnections({
             const answer = await connection.pc.createAnswer();
             await connection.pc.setLocalDescription(answer);
 
-            send("answer", from.userId, {
+            send("answer", from, {
               connectionId: connection.id,
               answer: connection.pc.localDescription?.toJSON(),
             });
@@ -395,7 +398,7 @@ export function collectPeerConnections({
             } catch (e) {
               logLine?.("⚠️ ERROR", {
                 error: "add-ice-failed",
-                userId: state.peer.userId,
+                userId: state.peer,
                 detail: String(e),
               });
             }
@@ -403,7 +406,7 @@ export function collectPeerConnections({
           }
 
           if (type === "broadcast") {
-            onBroadcastMessage?.(payload, from.userId);
+            onBroadcastMessage?.(payload, from);
           }
         },
       });
@@ -439,7 +442,7 @@ export function collectPeerConnections({
     end() {
       roomsEntered.forEach(({ exitRoom }) => exitRoom());
       roomsEntered.clear();
-      users.forEach(({ peer }) => leaveUser(peer.userId));
+      users.forEach(({ peer }) => leaveUser(peer));
       users.clear();
     },
   };

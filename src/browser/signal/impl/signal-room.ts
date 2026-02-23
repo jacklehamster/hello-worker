@@ -1,5 +1,6 @@
-export interface IPeer<T extends string = string, P = any> {
+export interface IPeer {
   userId: string;
+  joined?: number;
 }
 
 type OutMessage = { type: string; to: string; payload: any };
@@ -16,10 +17,10 @@ export function enterRoom<T extends string, P = any>(params: {
   onClose?: (ev: Pick<CloseEvent, "code" | "reason" | "wasClean">) => void;
   onError?: () => void;
   logLine?: (direction: string, obj?: any) => void;
-  onPeerJoined(users: IPeer<T, P>[]): void;
+  onPeerJoined(users: IPeer[]): void;
   onPeerLeft(users: { userId: string }[]): void;
   onIceUrl?(url: string, expiration: number): void;
-  onMessage(type: T, payload: P, from: IPeer<T, P>): void;
+  onMessage(type: T, payload: P, from: string): void;
   autoRejoin?: boolean;
 }): {
   exitRoom: () => void;
@@ -46,7 +47,7 @@ export function enterRoom<T extends string, P = any>(params: {
   let timeoutId: ReturnType<typeof setTimeout>;
   let initialConnection = true;
 
-  const peers = new Map<string, IPeer<T, P>>();
+  const peers = new Map<string, IPeer>();
   const wsUrl = `wss://${host}/room/${worldId}/${room}?userId=${encodeURIComponent(
     userId,
   )}`;
@@ -98,9 +99,7 @@ export function enterRoom<T extends string, P = any>(params: {
           } else if (msg.type === "ice-server") {
             params.onIceUrl?.(msg.url, msg.expiration);
           } else if (msg.userId) {
-            params.onMessage(msg.type, msg.payload, {
-              userId: msg.userId,
-            });
+            params.onMessage(msg.type, msg.payload, msg.userId);
           }
         });
       } catch {
@@ -147,7 +146,7 @@ export function enterRoom<T extends string, P = any>(params: {
     updatedUsers: { userId: string; joined: number }[],
     msg: Message,
   ) {
-    const joined: IPeer<T, P>[] = [];
+    const joined: IPeer[] = [];
     const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
 
@@ -166,7 +165,7 @@ export function enterRoom<T extends string, P = any>(params: {
       ) {
         const newPeer = {
           userId: pUserId,
-          receive: (t: T, p: P) => send(t, pUserId, p),
+          joined: joinedTime,
         };
         peers.set(pUserId, newPeer);
         joined.push(newPeer);

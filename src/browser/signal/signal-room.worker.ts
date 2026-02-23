@@ -82,12 +82,12 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       onIceUrl(url: string, expiration: number) {
         emit({ kind: "ice-server", url, expiration });
       },
-      onMessage: (type: any, payload: any, from: IPeer) => {
+      onMessage: (type: any, payload: any, from: string) => {
         emit({
           kind: "message",
           type,
           payload,
-          fromUserId: from.userId,
+          fromUserId: from,
         });
       },
     });
