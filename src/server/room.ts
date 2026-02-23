@@ -21,6 +21,7 @@ type Attachment = {
   worldId: string;
   roomId: string;
   host: string;
+  joined: number;
 };
 
 type IncomingMessage = {
@@ -74,6 +75,7 @@ export class Room implements DurableObject {
       worldId,
       roomId,
       host,
+      joined: Date.now(),
     } satisfies Attachment);
 
     console.debug(
@@ -106,9 +108,12 @@ export class Room implements DurableObject {
               {
                 type: "peer-joined",
                 userId,
-                users: this.getAttachments(sockets).map(({ userId }) => ({
-                  userId,
-                })),
+                users: this.getAttachments(sockets).map(
+                  ({ userId, joined }) => ({
+                    userId,
+                    joined,
+                  }),
+                ),
               },
             ]),
           );
@@ -236,7 +241,7 @@ export class Room implements DurableObject {
             type: "peer-left",
             userId,
             users: this.getAttachments(sockets.filter((s) => s !== ws)).map(
-              ({ userId }) => ({ userId }),
+              ({ userId, joined }) => ({ userId, joined }),
             ),
           }),
         );

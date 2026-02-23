@@ -36,7 +36,11 @@ export function enterRoom<T extends string, P = any>({
   workerUrl?: URL;
 }): {
   exitRoom: () => void;
-  sendToServer: <P extends any>(type: T, payload?: P) => void;
+  send: <P extends any>(
+    type: T,
+    userId: "server" | string,
+    payload?: P,
+  ) => void;
 } {
   if (!workerUrl) {
     const CDN_WORKER_URL = `https://cdn.jsdelivr.net/npm/@dobuki/hello-worker/dist/signal-room.worker.min.js`;
@@ -63,24 +67,6 @@ export function enterRoom<T extends string, P = any>({
   const worker = new Worker(workerUrl, { type: "module" });
   let exited = false;
 
-  function makeUser({ userId }: { userId: string }): IPeer<T, P> {
-    return {
-      userId,
-      receive: (type: T, payload: P) => {
-        if (exited) return false;
-        worker.postMessage({
-          cmd: "send",
-          toUserId: userId,
-          host,
-          room,
-          type,
-          payload,
-        } as WorkerCommand);
-        return true;
-      },
-    };
-  }
-
   const onWorkerMessage = (e: MessageEvent<RoomEvent<T, P>>) => {
     const ev = e.data;
 
@@ -90,11 +76,11 @@ export function enterRoom<T extends string, P = any>({
       onClose?.(ev.ev);
     } else if (ev.kind === "error") onError?.();
     else if (ev.kind === "peer-joined")
-      onPeerJoined(ev.users.map((ev) => makeUser({ userId: ev.userId })));
+      onPeerJoined(ev.users.map((ev) => ({ userId: ev.userId })));
     else if (ev.kind === "peer-left") onPeerLeft(ev.users);
     else if (ev.kind === "ice-server") onIceUrl?.(ev.url, ev.expiration);
     else if (ev.kind === "message")
-      onMessage(ev.type, ev.payload, makeUser({ userId: ev.fromUserId }));
+      onMessage(ev.type, ev.payload, { userId: ev.fromUserId });
     else if (ev.kind === "log") logLine?.(ev.direction, ev.obj);
   };
 
@@ -115,10 +101,10 @@ export function enterRoom<T extends string, P = any>({
       worker.removeEventListener("message", onWorkerMessage);
       worker.postMessage({ cmd: "exit" } as WorkerCommand);
     },
-    sendToServer: <P extends any>(type: T, payload?: P) => {
+    send: (type, toUserId, payload) => {
       worker.postMessage({
         cmd: "send",
-        toUserId: "server",
+        toUserId,
         host,
         room,
         type,

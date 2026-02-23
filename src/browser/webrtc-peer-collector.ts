@@ -139,7 +139,7 @@ export function collectPeerConnections({
           // Send local ICE candidates to this peer
           state.connection.pc.onicecandidate = (ev) => {
             if (!ev.candidate) return;
-            state.peer.receive("ice", {
+            send("ice", state.peer.userId, {
               connectionId: state.connection?.id,
               ice: ev.candidate.toJSON(),
             });
@@ -235,13 +235,13 @@ export function collectPeerConnections({
         const pc = state.connection?.pc;
         const offer = await pc?.createOffer();
         await pc?.setLocalDescription(offer);
-        user.receive("offer", {
+        send("offer", user.userId, {
           connectionId: state.connection?.id,
           offer: pc!.localDescription!.toJSON(),
         });
       }
 
-      const { exitRoom, sendToServer } = enterRoom({
+      const { exitRoom, send } = enterRoom({
         userId,
         worldId,
         room,
@@ -323,7 +323,7 @@ export function collectPeerConnections({
             const answer = await connection.pc.createAnswer();
             await connection.pc.setLocalDescription(answer);
 
-            from.receive("answer", {
+            send("answer", from.userId, {
               connectionId: connection.id,
               answer: connection.pc.localDescription?.toJSON(),
             });
@@ -408,16 +408,18 @@ export function collectPeerConnections({
         },
       });
 
-      iceUrlProvider.addRequester(sendToServer);
+      const removeRequester = iceUrlProvider.addRequester((command) =>
+        send(command, "server"),
+      );
 
       roomsEntered.set(`${host}/room/${room}`, {
         exitRoom: () => {
           exitRoom();
-          iceUrlProvider.removeRequester(sendToServer);
+          removeRequester();
         },
         room,
         host,
-        broadcast: (payload) => sendToServer("broadcast", payload),
+        broadcast: (payload) => send("broadcast", "server", payload),
       });
     });
   }

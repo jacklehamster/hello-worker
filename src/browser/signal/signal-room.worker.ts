@@ -37,10 +37,7 @@ export type WorkerCommand<T extends string = string, P = any> =
     };
 
 let exitRoom: (() => void) | null = null;
-let sendToServer: (type: string, payload?: any) => void;
-
-// Map from userId -> a function to send to that peer (comes from IUser.receive)
-const peerSend = new Map<string, (type: any, payload: any) => boolean>();
+let send: (type: string, userId: "server" | string, payload?: any) => void;
 
 function emit<T extends string, P>(ev: RoomEvent<T, P>) {
   (self as DedicatedWorkerGlobalScope).postMessage(ev);
@@ -54,7 +51,6 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
     // If re-entering, clean up first
     exitRoom?.();
     exitRoom = null;
-    peerSend.clear();
 
     const result = enterRoom({
       userId: msg.userId,
@@ -75,27 +71,18 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
         emit({ kind: "log", direction, obj });
       },
       onPeerJoined: (users: IPeer[]) => {
-        // Save the ability to send to this peer
-        users.forEach(({ userId, receive }) =>
-          peerSend.set(`${msg.host}/${msg.room}/${userId}`, receive),
-        );
         emit({
           kind: "peer-joined",
           users: users.map(({ userId }) => ({ userId })),
         });
       },
       onPeerLeft: (users: { userId: string }[]) => {
-        users.forEach(({ userId }) =>
-          peerSend.delete(`${msg.host}/${msg.room}/${userId}`),
-        );
         emit({ kind: "peer-left", users });
       },
       onIceUrl(url: string, expiration: number) {
         emit({ kind: "ice-server", url, expiration });
       },
       onMessage: (type: any, payload: any, from: IPeer) => {
-        // We can also learn peerSend via onMessage in case join events vary
-        peerSend.set(`${msg.host}/${msg.room}/${from.userId}`, from.receive);
         emit({
           kind: "message",
           type,
@@ -106,16 +93,13 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
     });
 
     exitRoom = result.exitRoom;
-    sendToServer = result.sendToServer;
+    send = result.send;
     return;
   }
 
   if (msg.cmd === "send") {
-    if (msg.toUserId === "server") {
-      sendToServer?.(msg.type, msg.payload);
-    } else if (msg.toUserId) {
-      const sendFn = peerSend.get(`${msg.host}/${msg.room}/${msg.toUserId}`);
-      if (sendFn) sendFn(msg.type, msg.payload);
+    if (msg.toUserId) {
+      send(msg.type, msg.toUserId, msg.payload);
     }
     return;
   }

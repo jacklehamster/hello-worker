@@ -1,6 +1,5 @@
 export interface IPeer<T extends string = string, P = any> {
   userId: string;
-  receive(type: T, payload: P): boolean;
 }
 
 type OutMessage = { type: string; to: string; payload: any };
@@ -24,12 +23,16 @@ export function enterRoom<T extends string, P = any>(params: {
   autoRejoin?: boolean;
 }): {
   exitRoom: () => void;
-  sendToServer: <P extends any>(type: T, payload?: P) => void;
+  send: <P extends any>(
+    type: T,
+    userId: "server" | string,
+    payload?: P,
+  ) => void;
 } {
   type Message = {
     type: "peer-joined" | "peer-left" | "ice-server" | T;
     userId: string;
-    users: { userId: string }[];
+    users: { userId: string; joined: number }[];
     payload: P;
     url: string;
     expiration: number;
@@ -97,7 +100,6 @@ export function enterRoom<T extends string, P = any>(params: {
           } else if (msg.userId) {
             params.onMessage(msg.type, msg.payload, {
               userId: msg.userId,
-              receive: (type: T, payload: P) => send(type, msg.userId, payload),
             });
           }
         });
@@ -113,7 +115,7 @@ export function enterRoom<T extends string, P = any>(params: {
 
       if (autoRejoin && !exited && isRecoverable) {
         // 2. Exponential Backoff: 1s, 2s, 4s, 8s... capped at 30s
-        const backoff = Math.min(Math.pow(2, retryCount) * 1000, 30000);
+        const backoff = Math.min(Math.pow(2, retryCount) * 1000, 15000);
         // 3. Add Jitter: +/- 1000ms randomness
         const jitter = Math.random() * 1000;
         const delay = backoff + jitter;
@@ -141,12 +143,22 @@ export function enterRoom<T extends string, P = any>(params: {
   }
 
   // Helper for peer tracking (logic from your original code)
-  function updatePeers(updatedUsers: { userId: string }[], msg: Message) {
+  function updatePeers(
+    updatedUsers: { userId: string; joined: number }[],
+    msg: Message,
+  ) {
     const joined: IPeer<T, P>[] = [];
     const left: { userId: string }[] = [];
     const updatedPeerSet = new Set<string>();
 
-    updatedUsers.forEach(({ userId: pUserId }) => {
+    const selfPeer = updatedUsers.filter((peer) => peer.userId === userId)[0];
+    if (!selfPeer) {
+      logLine?.("⚠️", "Cannot find self in updated users");
+      return;
+    }
+    const selfJoined = selfPeer.joined;
+
+    updatedUsers.forEach(({ userId: pUserId, joined: joinedTime }) => {
       if (pUserId === userId) return;
       if (
         !peers.has(pUserId) ||
@@ -181,8 +193,8 @@ export function enterRoom<T extends string, P = any>(params: {
   connect();
 
   return {
-    sendToServer(type, payload) {
-      send(type, "server", payload);
+    send(type, userId, payload) {
+      send(type, userId, payload);
     },
     exitRoom: () => {
       exited = true;
