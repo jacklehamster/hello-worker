@@ -108,12 +108,17 @@ export class Room implements DurableObject {
               {
                 type: "peer-joined",
                 userId,
-                users: this.getAttachments(sockets).map(
-                  ({ userId, joined }) => ({
+                users: this.getAttachments(sockets)
+                  .map(({ userId, joined }) => ({
                     userId,
                     joined,
+                  }))
+                  .toSorted((a, b) => {
+                    if (a.joined !== b.joined) {
+                      return a.joined - b.joined;
+                    }
+                    return a.userId.localeCompare(b.userId);
                   }),
-                ),
               },
             ]),
           );
@@ -240,9 +245,14 @@ export class Room implements DurableObject {
           JSON.stringify({
             type: "peer-left",
             userId,
-            users: this.getAttachments(sockets.filter((s) => s !== ws)).map(
-              ({ userId, joined }) => ({ userId, joined }),
-            ),
+            users: this.getAttachments(sockets.filter((s) => s !== ws))
+              .map(({ userId, joined }) => ({ userId, joined }))
+              .toSorted((a, b) => {
+                if (a.joined !== b.joined) {
+                  return a.joined - b.joined;
+                }
+                return a.userId.localeCompare(b.userId);
+              }),
           }),
         );
       } catch {}
