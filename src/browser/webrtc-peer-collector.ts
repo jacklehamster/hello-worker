@@ -279,8 +279,13 @@ export function collectPeerConnections({
               userId: user.userId,
               restart: () => state.close(),
             });
-            console.log(">>", user, "|", user.joined - selfJoined);
-            await makeOffer(user.userId);
+            if (
+              user.joined > selfJoined ||
+              (user.joined === selfJoined &&
+                user.userId.localeCompare(userId) > 0)
+            ) {
+              await makeOffer(user.userId);
+            }
           });
         },
 
