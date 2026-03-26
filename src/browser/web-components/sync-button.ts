@@ -11,7 +11,6 @@ const session = enterWorld({
 
 export class SyncButton extends HTMLElement {
   static observedAttributes = ["id", "disabled"];
-  private session?: ReturnType<typeof enterWorld>;
   private shadowButton?: HTMLButtonElement;
   private uuid = crypto.randomUUID();
 
@@ -60,7 +59,7 @@ export class SyncButton extends HTMLElement {
     button.disabled = disabled;
     button.textContent = label;
     button.addEventListener("click", () => {
-      this.session?.send(JSON.stringify({ uuid: this.uuid, action: "click" }));
+      session?.send(JSON.stringify({ uuid: this.uuid, action: "click" }));
     });
     this.shadowButton = button;
   }
