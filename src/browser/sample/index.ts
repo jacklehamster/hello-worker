@@ -3,6 +3,7 @@
 
 import { enterRoom } from "../signal/signal-room.js";
 import { enterWorld } from "../enter-world.js";
+export * from "../web-components/sync-button.js";
 
 const statusEl = document.getElementById("status")!;
 const logEl = document.getElementById("log")!;
