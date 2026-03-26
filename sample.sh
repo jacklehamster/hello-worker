@@ -1,1 +1,1 @@
-npx wrangler dev
+bun run build && npx wrangler dev
