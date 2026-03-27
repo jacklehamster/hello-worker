@@ -37,8 +37,8 @@ export class SyncButton extends HTMLElement {
 
   private onMessage(data: string | ArrayBufferLike) {
     try {
-      const { action } = JSON.parse(String(data));
-      if (action === "click") {
+      const { action, id } = JSON.parse(String(data));
+      if (action === "click" && this.id === id) {
         this.unhokSync();
         this.shadowButton?.click();
         this.hookSync();
@@ -65,7 +65,7 @@ export class SyncButton extends HTMLElement {
   }
 
   private onClickButton() {
-    session?.send(JSON.stringify({ action: "click" }));
+    session?.send(JSON.stringify({ action: "click", id: this.id }));
   }
 
   render() {
