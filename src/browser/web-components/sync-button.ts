@@ -13,8 +13,6 @@ session.enterRoom({
   host: location.host,
 });
 
-console.log("Entered world");
-
 export class SyncButton extends HTMLElement {
   static observedAttributes = ["id", "disabled"];
   private shadowButton?: HTMLButtonElement;
@@ -38,7 +36,6 @@ export class SyncButton extends HTMLElement {
   }
 
   private onMessage(data: string | ArrayBufferLike) {
-    console.log("Got message", data);
     try {
       const { action } = JSON.parse(String(data));
       if (action === "click") {

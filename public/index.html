@@ -9,6 +9,7 @@
     textarea { width: 100%; height: 80px; }
     input, button, textarea { font-size: 14px; }
     .hidden { display: none; }
+    sync-button { border: 2px solid greenyellow }
   </style>
 </head>
 <body>
@@ -26,10 +27,10 @@
   <div id="log" style="transition: scroll 500ms"></div>
   <div style="display: flex; flex-direction: row; gap: 10px; margin-top: 10px;">
     <button id="clear-log">Clear log</button>
-    <button id="welcome-button" disabled>welcome</button>
-    <button id="webrtc-button">test webRTC</button>
+    <sync-button id="welcome-button" disabled>welcome</sync-button>
+    <sync-button id="webrtc-button">test webRTC</sync-button>
     <button id="reset-webrtc">reset webRTC</button>
-    <button id="broadcast-button">test broadcast</button>
+    <sync-button id="broadcast-button">test broadcast</sync-button>
   </div>
 
   <div>
@@ -116,13 +117,6 @@
     };
     document.addEventListener("DOMContentLoaded", () => {
       connect();
-    });
-  </script>
-
-  <sync-button is="sync-button" id="abc" host="test">Sync</sync-button>
-  <script>
-    document.querySelector("#abc").addEventListener("click", () => {
-      console.log(123);
     });
   </script>
 </body>
