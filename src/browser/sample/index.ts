@@ -42,6 +42,7 @@ export function testWelcome() {
     userId: crypto.randomUUID(),
     worldId: "signal-test",
     room: "test",
+    protocol: location.protocol === "https" ? "wss" : "ws",
     host: location.host,
     autoRejoin: true,
     onOpen: () => {
@@ -151,6 +152,7 @@ export function testWebRTC(websocketBroadcast: boolean) {
   session
     .enterRoom({
       room: "test",
+      protocol: location.protocol === "https" ? "wss" : "ws",
       host: location.host,
     })
     .then(() => {

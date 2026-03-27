@@ -12,6 +12,7 @@ export function enterRoom<T extends string, P = any>(params: {
   userId: string;
   worldId: string;
   room: string;
+  protocol?: string;
   host: string;
   onOpen?: () => void;
   onClose?: (ev: Pick<CloseEvent, "code" | "reason" | "wasClean">) => void;
@@ -39,7 +40,15 @@ export function enterRoom<T extends string, P = any>(params: {
     expiration: number;
   };
 
-  const { userId, worldId, room, host, autoRejoin = true, logLine } = params;
+  const {
+    userId,
+    worldId,
+    room,
+    host,
+    protocol,
+    autoRejoin = true,
+    logLine,
+  } = params;
 
   let exited = false;
   let retryCount = 0;
@@ -48,8 +57,7 @@ export function enterRoom<T extends string, P = any>(params: {
   let initialConnection = true;
 
   const peers = new Map<string, IPeer>();
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  const wsUrl = `${proto}://${host}/room/${worldId}/${room}?userId=${encodeURIComponent(
+  const wsUrl = `${protocol ?? "wss"}://${host}/room/${worldId}/${room}?userId=${encodeURIComponent(
     userId,
   )}`;
 

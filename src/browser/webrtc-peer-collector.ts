@@ -124,7 +124,15 @@ export function collectPeerConnections({
     }
   }
 
-  function enter({ room, host }: { room: string; host: string }) {
+  function enter({
+    room,
+    host,
+    protocol,
+  }: {
+    room: string;
+    host: string;
+    protocol?: string;
+  }) {
     return new Promise<void>(async (resolve, reject) => {
       async function setupConnection(state: UserState) {
         if (state.connectionPromise) {
@@ -246,6 +254,7 @@ export function collectPeerConnections({
         userId,
         worldId,
         room,
+        protocol,
         host,
         logLine,
         workerUrl,

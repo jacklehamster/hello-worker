@@ -6,6 +6,7 @@ export function enterRoom<T extends string, P = any>({
   userId,
   worldId,
   room,
+  protocol = "wss",
   host,
   autoRejoin = true,
   onOpen,
@@ -21,6 +22,7 @@ export function enterRoom<T extends string, P = any>({
   userId: string;
   worldId: string;
   room: string;
+  protocol?: string;
   host: string;
   autoRejoin?: boolean;
   onOpen?: () => void;
@@ -53,6 +55,7 @@ export function enterRoom<T extends string, P = any>({
       userId,
       worldId,
       room,
+      protocol,
       host,
       autoRejoin,
       onOpen,
