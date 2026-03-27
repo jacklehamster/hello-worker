@@ -17,7 +17,7 @@ export class SyncButton extends HTMLElement {
           ordered: false,
         },
         workerUrl: new URL(
-          "https://cdn.jsdelivr.net/npm/@dobuki/hello-worker/dist/signal-room.worker.min.js",
+          "https://hello.dobuki.net/signal/signal-room.worker.js",
         ),
         logLine: console.log,
       });
