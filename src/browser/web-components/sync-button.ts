@@ -2,7 +2,6 @@ import { enterWorld } from "../enter-world";
 
 const session = enterWorld({
   worldId: "sync-buttons",
-  workerUrl: new URL("../signal/signal-room.worker.js", import.meta.url),
   dataChannelOptions: {
     ordered: false,
   },
