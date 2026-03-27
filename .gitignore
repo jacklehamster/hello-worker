@@ -180,5 +180,6 @@ wrangler.dev.toml
 public/**/*
 !public/index.html
 !public/favicon.ico
+!public/_headers
 
 dist/
