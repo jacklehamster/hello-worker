@@ -8,6 +8,11 @@ const session = enterWorld({
   },
   logLine: console.log,
 });
+session.enterRoom({
+  room: "sync-button",
+  host: location.host,
+});
+
 console.log("Entered world");
 
 export class SyncButton extends HTMLElement {
@@ -22,10 +27,6 @@ export class SyncButton extends HTMLElement {
   }
 
   connectedCallback() {
-    session.enterRoom({
-      room: "sync-button",
-      host: location.host,
-    });
     session.addMessageListener(this.onMessage);
 
     this.render();
