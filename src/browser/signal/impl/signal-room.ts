@@ -49,7 +49,7 @@ export function enterRoom<T extends string, P = any>(params: {
 
   const peers = new Map<string, IPeer>();
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  const wsUrl = `${proto}}://${host}/room/${worldId}/${room}?userId=${encodeURIComponent(
+  const wsUrl = `${proto}://${host}/room/${worldId}/${room}?userId=${encodeURIComponent(
     userId,
   )}`;
 
