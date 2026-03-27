@@ -17,6 +17,8 @@ export class SyncButton extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+    this.onMessage = this.onMessage.bind(this);
+    this.onClickButton = this.onClickButton.bind(this);
   }
 
   connectedCallback() {
@@ -24,19 +26,28 @@ export class SyncButton extends HTMLElement {
       room: "sync-button",
       host: location.host,
     });
-    session.addMessageListener((data) => {
-      console.log("Got message", data);
-      try {
-        const { action } = JSON.parse(String(data));
-        if (action === "click") {
-          this.shadowButton?.click();
-        }
-      } catch {
-        // ignore non-json
-      }
-    });
+    session.addMessageListener(this.onMessage);
 
     this.render();
+    this.hookSync();
+  }
+
+  disconnectedCallback() {
+    session.removeMessageListener(this.onMessage);
+  }
+
+  private onMessage(data: string | ArrayBufferLike) {
+    console.log("Got message", data);
+    try {
+      const { action } = JSON.parse(String(data));
+      if (action === "click") {
+        this.unhokSync();
+        this.shadowButton?.click();
+        this.hookSync();
+      }
+    } catch {
+      // ignore non-json
+    }
   }
 
   attributeChangedCallback(
@@ -45,6 +56,18 @@ export class SyncButton extends HTMLElement {
     newValue: string | null,
   ) {
     this.render();
+  }
+
+  hookSync() {
+    this.shadowButton?.addEventListener("click", this.onClickButton);
+  }
+
+  unhokSync() {
+    this.shadowButton?.removeEventListener("click", this.onClickButton);
+  }
+
+  private onClickButton() {
+    session?.send(JSON.stringify({ action: "click" }));
   }
 
   render() {
@@ -57,9 +80,6 @@ export class SyncButton extends HTMLElement {
     );
     button.disabled = disabled;
     button.textContent = label;
-    button.addEventListener("click", () => {
-      session?.send(JSON.stringify({ action: "click" }));
-    });
     this.shadowButton = button;
   }
 }
