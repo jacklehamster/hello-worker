@@ -10,6 +10,7 @@
     input, button, textarea { font-size: 14px; }
     .hidden { display: none; }
     sync-button { border: 2px solid greenyellow }
+    sync-button.selected { background-color: gold; }
   </style>
 </head>
 <body>
@@ -52,6 +53,11 @@
       document.getElementById("webrtc-button").disabled = false;
       document.getElementById("reset-webrtc").disabled =  !document.getElementById("webrtc-button").disabled;
       document.getElementById("broadcast-button").disabled = false;
+
+      document.getElementById("welcome-button").classList.add("selected");
+      document.getElementById("webrtc-button").classList.remove("selected");
+      document.getElementById("broadcast-button").classList.remove("selected");
+
       onExit = testWelcome();
     }
     function setWebRTC() {
@@ -61,6 +67,11 @@
       document.getElementById("webrtc-button").disabled = true;
       document.getElementById("reset-webrtc").disabled =  !document.getElementById("webrtc-button").disabled;
       document.getElementById("broadcast-button").disabled = false;
+
+      document.getElementById("welcome-button").classList.remove("selected");
+      document.getElementById("webrtc-button").classList.add("selected");
+      document.getElementById("broadcast-button").classList.remove("selected");
+
       onExit = testWebRTC(false);   
     }
     function setWebsocketBroadcast() {
@@ -70,6 +81,11 @@
       document.getElementById("webrtc-button").disabled = false;
       document.getElementById("reset-webrtc").disabled =  !document.getElementById("webrtc-button").disabled;
       document.getElementById("broadcast-button").disabled = true;
+
+      document.getElementById("welcome-button").classList.remove("selected");
+      document.getElementById("webrtc-button").classList.remove("selected");
+      document.getElementById("broadcast-button").classList.add("selected");
+
       onExit = testWebRTC(true);   
     }
 
