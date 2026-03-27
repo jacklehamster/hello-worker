@@ -133,6 +133,7 @@ export function enterWorld<
   });
 
   function send(data: S, userId?: string) {
+    logLine?.("💬", "sending data", data);
     dataChannels.forEach((dataChannel, pUserId) => {
       if (userId && pUserId !== userId) return;
       if (dataChannel.readyState === "open") {
