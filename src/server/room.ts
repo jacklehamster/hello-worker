@@ -3,7 +3,6 @@ import {
   DurableObject,
   DurableObjectState,
   Request,
-  WebSocketPair,
 } from "@cloudflare/workers-types";
 import { mintIceToken } from "./utils/iceToken";
 import { Env } from "./env";
@@ -36,8 +35,8 @@ declare global {
   }
 
   class WebSocketPair {
-    0: CloudflareWebsocket; // Client
-    1: CloudflareWebsocket; // Server
+    0: WebSocket; // Client
+    1: WebSocket; // Server
   }
 
   interface ResponseInit {
