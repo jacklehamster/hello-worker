@@ -24,7 +24,7 @@ export class SyncButton extends HTMLElement {
       });
 
       session.enterRoom({
-        room: `sync-button-${Md5.hashAsciiStr(`${location.origin}-${location.pathname}`)}`,
+        room: `sync-button-${Md5.hashStr(`${location.origin}-${location.pathname}`)}`,
         host: "hello.dobuki.net",
       });
       SyncButton.session = session;
