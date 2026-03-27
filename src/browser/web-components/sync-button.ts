@@ -16,11 +16,14 @@ export class SyncButton extends HTMLElement {
         dataChannelOptions: {
           ordered: false,
         },
+        workerUrl: new URL(
+          "https://cdn.jsdelivr.net/npm/@dobuki/hello-worker/dist/signal-room.worker.min.js",
+        ),
         logLine: console.log,
       });
 
       session.enterRoom({
-        room: "sync-button",
+        room: `sync-button-${location.origin}-${location.pathname}`,
         host: "hello.dobuki.net",
       });
       SyncButton.session = session;
