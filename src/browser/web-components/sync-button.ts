@@ -50,9 +50,14 @@ export class SyncButton extends HTMLElement {
 
   attributeChangedCallback(
     name: string,
-    oldValue: string | null,
+    _oldValue: string | null,
     newValue: string | null,
   ) {
+    if (newValue) {
+      this.shadowButton?.setAttribute(name, newValue);
+    } else {
+      this.shadowButton?.removeAttribute(name);
+    }
     this.render();
   }
 
