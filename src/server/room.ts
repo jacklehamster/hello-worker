@@ -3,10 +3,47 @@ import {
   DurableObject,
   DurableObjectState,
   Request,
+  WebSocketPair,
 } from "@cloudflare/workers-types";
 import { mintIceToken } from "./utils/iceToken";
 import { Env } from "./env";
 import { extractPathInfo } from "./utils/url-utils";
+
+export {};
+
+declare global {
+  interface CloudflareWebsocket {
+    accept(): unknown;
+    addEventListener(
+      event: "close",
+      callbackFunction: (code?: number, reason?: string) => unknown,
+    ): unknown;
+    addEventListener(
+      event: "error",
+      callbackFunction: (e: unknown) => unknown,
+    ): unknown;
+    addEventListener(
+      event: "message",
+      callbackFunction: (event: { data: any }) => unknown,
+    ): unknown;
+
+    /**
+     * @param code https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent
+     * @param reason
+     */
+    close(code?: number, reason?: string): unknown;
+    send(message: string | Uint8Array): unknown;
+  }
+
+  class WebSocketPair {
+    0: CloudflareWebsocket; // Client
+    1: CloudflareWebsocket; // Server
+  }
+
+  interface ResponseInit {
+    webSocket?: CloudflareWebsocket;
+  }
+}
 
 type AnyJson =
   | null
@@ -46,7 +83,7 @@ export class Room implements DurableObject {
 
   async getIceToken(worldId: string, roomId: string, userId: string) {
     return await mintIceToken({
-      secret: this.env.ICE_AUTH_SECRET,
+      secret: this.env.ICE_AUTH_SECRET ?? "ICE_AUTH_SECRET",
       worldId,
       roomId,
       userId,
@@ -64,7 +101,8 @@ export class Room implements DurableObject {
       return new Response("Missing userId", { status: 400 });
     }
     const pair = new WebSocketPair();
-    const [client, server] = pair;
+    const client = pair[0];
+    const server = pair[1];
 
     // IMPORTANT: accept first
     this.state.acceptWebSocket(server);

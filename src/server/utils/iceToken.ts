@@ -22,7 +22,7 @@ async function importHmacKey(secret: string) {
     te.encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign", "verify"]
+    ["sign", "verify"],
   );
 }
 
@@ -42,7 +42,7 @@ export async function mintIceToken<T extends Record<string, any>>(
   opts: {
     secret: string;
     ttlMs: number;
-  } & T
+  } & T,
 ) {
   const { secret, ttlMs, ...args } = opts;
   const expiration = Date.now() + ttlMs;

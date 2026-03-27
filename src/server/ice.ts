@@ -32,14 +32,14 @@ export class IceServer {
 
       const token = url.searchParams.get("token");
       const result = await verifyIceToken({
-        secret: env.ICE_AUTH_SECRET,
+        secret: env.ICE_AUTH_SECRET ?? "ICE_AUTH_SECRET",
         token,
       });
       if (!result) {
         return this.withCors(new Response("Unauthorized", { status: 401 }));
       }
       console.debug(
-        `Providing ice servers for ${result.userId} in ${result.worldId}/${result.roomId}`
+        `Providing ice servers for ${result.userId} in ${result.worldId}/${result.roomId}`,
       );
 
       const r = await fetch(
@@ -51,7 +51,7 @@ export class IceServer {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ ttl: 3600 }), // 1 hour is typical
-        }
+        },
       );
 
       if (!r.ok) {
@@ -68,8 +68,8 @@ export class IceServer {
           }),
           {
             headers: { "Content-Type": "application/json" },
-          }
-        )
+          },
+        ),
       );
     }
     return undefined;
