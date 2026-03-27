@@ -8,6 +8,7 @@ const session = enterWorld({
   },
   logLine: console.log,
 });
+console.log("Entered world");
 
 export class SyncButton extends HTMLElement {
   static observedAttributes = ["id", "disabled"];
@@ -57,9 +58,6 @@ export class SyncButton extends HTMLElement {
     button.disabled = disabled;
     button.textContent = label;
     button.addEventListener("click", () => {
-      console.log("session sending message", {
-        action: "click",
-      });
       session?.send(JSON.stringify({ action: "click" }));
     });
     this.shadowButton = button;
