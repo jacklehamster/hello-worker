@@ -10,7 +10,7 @@ const session = enterWorld({
 
 session.enterRoom({
   room: "sync-button",
-  host: location.host,
+  host: "hello.dobuki.net",
 });
 
 export class SyncButton extends HTMLElement {
