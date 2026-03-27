@@ -59,6 +59,10 @@ export class SyncButton extends HTMLElement {
     button.disabled = disabled;
     button.textContent = label;
     button.addEventListener("click", () => {
+      console.log("session sending message", {
+        uuid: this.uuid,
+        action: "click",
+      });
       session?.send(JSON.stringify({ uuid: this.uuid, action: "click" }));
     });
     this.shadowButton = button;
