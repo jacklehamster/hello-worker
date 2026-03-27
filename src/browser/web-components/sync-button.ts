@@ -1,26 +1,31 @@
 import { enterWorld } from "../enter-world";
 
-const session = enterWorld({
-  worldId: "sync-buttons",
-  dataChannelOptions: {
-    ordered: false,
-  },
-  logLine: console.log,
-});
-
-session.enterRoom({
-  room: "sync-button",
-  host: "hello.dobuki.net",
-});
-
 export class SyncButton extends HTMLElement {
   static observedAttributes = ["id", "disabled"];
+
+  static session?: any;
 
   private shadowButton!: HTMLButtonElement;
   private slotEl!: HTMLSlotElement;
 
   constructor() {
     super();
+    if (!SyncButton.session) {
+      const session = enterWorld({
+        worldId: "sync-buttons",
+        dataChannelOptions: {
+          ordered: false,
+        },
+        logLine: console.log,
+      });
+
+      session.enterRoom({
+        room: "sync-button",
+        host: "hello.dobuki.net",
+      });
+      SyncButton.session = session;
+    }
+
     this.attachShadow({ mode: "open" });
     this.onMessage = this.onMessage.bind(this);
     this.onClickButton = this.onClickButton.bind(this);
@@ -56,14 +61,14 @@ export class SyncButton extends HTMLElement {
   }
 
   connectedCallback() {
-    session.addMessageListener(this.onMessage);
+    SyncButton.session.addMessageListener(this.onMessage);
     this.shadowButton.addEventListener("click", this.onClickButton);
     this.syncToInnerButton();
     this.upgradeProperty("disabled");
   }
 
   disconnectedCallback() {
-    session.removeMessageListener(this.onMessage);
+    SyncButton.session.removeMessageListener(this.onMessage);
     this.shadowButton.removeEventListener("click", this.onClickButton);
   }
 
@@ -127,7 +132,7 @@ export class SyncButton extends HTMLElement {
   }
 
   private onClickButton() {
-    session.send(JSON.stringify({ action: "click", id: this.id }));
+    SyncButton.session.send(JSON.stringify({ action: "click", id: this.id }));
   }
 }
 
