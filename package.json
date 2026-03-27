@@ -27,5 +27,8 @@
     "@cloudflare/workers-types": "latest",
     "typescript": "latest",
     "wrangler": "latest"
+  },
+  "dependencies": {
+    "ts-md5": "^2.0.1"
   }
 }

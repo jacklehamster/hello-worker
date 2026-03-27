@@ -64,7 +64,30 @@ export function enterRoom<T extends string, P = any>({
       onMessage,
     });
   }
-  const worker = new Worker(workerUrl, { type: "module" });
+
+  let worker: Worker | undefined;
+  const res = fetch(workerUrl).then(async (res) => {
+    if (!res.ok) {
+      throw new Error(`Failed to load worker script: ${res.status}`);
+    }
+    const source = await res.text();
+
+    const blob = new Blob([source], { type: "text/javascript" });
+    const blobUrl = URL.createObjectURL(blob);
+
+    worker = new Worker(blobUrl, { type: "module" });
+
+    worker.addEventListener("message", onWorkerMessage);
+
+    worker.postMessage({
+      cmd: "enter",
+      userId,
+      worldId,
+      room,
+      host,
+      autoRejoin,
+    } as WorkerCommand);
+  });
   let exited = false;
 
   const onWorkerMessage = (e: MessageEvent<RoomEvent<T, P>>) => {
@@ -72,7 +95,7 @@ export function enterRoom<T extends string, P = any>({
 
     if (ev.kind === "open") onOpen?.();
     else if (ev.kind === "close") {
-      worker.terminate();
+      worker?.terminate();
       onClose?.(ev.ev);
     } else if (ev.kind === "error") onError?.();
     else if (ev.kind === "peer-joined")
@@ -87,25 +110,14 @@ export function enterRoom<T extends string, P = any>({
     else if (ev.kind === "log") logLine?.(ev.direction, ev.obj);
   };
 
-  worker.addEventListener("message", onWorkerMessage);
-
-  worker.postMessage({
-    cmd: "enter",
-    userId,
-    worldId,
-    room,
-    host,
-    autoRejoin,
-  } as WorkerCommand);
-
   return {
     exitRoom: () => {
       exited = true;
-      worker.removeEventListener("message", onWorkerMessage);
-      worker.postMessage({ cmd: "exit" } as WorkerCommand);
+      worker?.removeEventListener("message", onWorkerMessage);
+      worker?.postMessage({ cmd: "exit" } as WorkerCommand);
     },
     send: (type, toUserId, payload) => {
-      worker.postMessage({
+      worker?.postMessage({
         cmd: "send",
         toUserId,
         host,

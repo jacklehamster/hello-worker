@@ -1,4 +1,5 @@
 import { enterWorld } from "../enter-world";
+import { Md5 } from "ts-md5";
 
 export class SyncButton extends HTMLElement {
   static observedAttributes = ["id", "disabled"];
@@ -23,7 +24,7 @@ export class SyncButton extends HTMLElement {
       });
 
       session.enterRoom({
-        room: `sync-button-${location.origin}-${location.pathname}`,
+        room: `sync-button-${Md5.hashAsciiStr(`${location.origin}-${location.pathname}`)}`,
         host: "hello.dobuki.net",
       });
       SyncButton.session = session;
