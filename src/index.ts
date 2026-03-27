@@ -6,35 +6,8 @@ export { Room } from "./server/room";
 
 const ICE_SERVER = new IceServer();
 
-function withCors(response: any) {
-  const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS",
-  );
-  headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
 export default {
   async fetch(req: Request, env: Env) {
-    {
-      if (req.method === "OPTIONS") {
-        return new Response(null, {
-          status: 204,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-          },
-        });
-      }
-    }
     {
       const response = await ICE_SERVER.fetch(req, env);
       if (response) {
@@ -46,7 +19,7 @@ export default {
     const { worldId, roomId } = extractPathInfo(req);
     if (!worldId || !roomId) {
       // everything else falls through to static assets
-      return withCors(await env.ASSETS.fetch(req));
+      return env.ASSETS.fetch(req);
     }
 
     // WebSocket upgrade required
