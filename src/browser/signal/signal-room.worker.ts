@@ -28,6 +28,7 @@ export type WorkerCommand<T extends string = string, P = any> =
       worldId: string;
       room: string;
       host: string;
+      protocol?: string;
       autoRejoin: boolean;
     }
   | { cmd: "exit" }
@@ -61,6 +62,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerCommand>) => {
       worldId: msg.worldId,
       room: msg.room,
       host: msg.host,
+      protocol: msg.protocol,
       autoRejoin: msg.autoRejoin,
       onOpen: () => emit({ kind: "open" }),
       onClose: ({

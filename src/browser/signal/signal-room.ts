@@ -87,6 +87,7 @@ export function enterRoom<T extends string, P = any>({
       userId,
       worldId,
       room,
+      protocol,
       host,
       autoRejoin,
     } as WorkerCommand);
