@@ -1,35 +1,16 @@
-import { enterWorld } from "../enter-world";
+import { enterRoom } from "../signal/signal-room.js";
 import { Md5 } from "ts-md5";
 
 export class SyncButton extends HTMLElement {
   static observedAttributes = ["id", "disabled"];
 
-  static session?: any;
-
   private shadowButton!: HTMLButtonElement;
   private slotEl!: HTMLSlotElement;
+  private send: any;
+  private exitRoom: any;
 
   constructor() {
     super();
-    if (!SyncButton.session) {
-      const session = enterWorld({
-        worldId: "sync-buttons",
-        dataChannelOptions: {
-          ordered: false,
-        },
-        workerUrl: new URL(
-          "https://hello.dobuki.net/signal/signal-room.worker.js",
-        ),
-        logLine: console.log,
-      });
-
-      session.enterRoom({
-        room: `sync-button-${Md5.hashStr(`${location.origin}-${location.pathname}`)}`,
-        host: "hello.dobuki.net",
-      });
-      SyncButton.session = session;
-    }
-
     this.attachShadow({ mode: "open" });
     this.onMessage = this.onMessage.bind(this);
     this.onClickButton = this.onClickButton.bind(this);
@@ -64,15 +45,35 @@ export class SyncButton extends HTMLElement {
     this.slotEl = this.shadowRoot!.querySelector("slot")!;
   }
 
+  broadcast(payload: string) {
+    this.send("broadcast", "server", payload);
+  }
+
   connectedCallback() {
-    SyncButton.session.addMessageListener(this.onMessage);
+    const { send, exitRoom } = enterRoom({
+      userId: crypto.randomUUID(),
+      worldId: "sync-button",
+      room: `sync-button-${Md5.hashStr(`${location.origin}-${location.pathname}`)}`,
+      host: "hello.dobuki.net",
+      onPeerJoined: () => {},
+      onPeerLeft: () => {},
+      onMessage: (type: string, payload: string) => {
+        if (type === "broadcast") {
+          this.onMessage(payload);
+        }
+      },
+    });
+    this.send = send;
+    this.exitRoom = exitRoom;
+
     this.shadowButton.addEventListener("click", this.onClickButton);
     this.syncToInnerButton();
     this.upgradeProperty("disabled");
   }
 
   disconnectedCallback() {
-    SyncButton.session.removeMessageListener(this.onMessage);
+    this.exitRoom();
+
     this.shadowButton.removeEventListener("click", this.onClickButton);
   }
 
@@ -136,7 +137,7 @@ export class SyncButton extends HTMLElement {
   }
 
   private onClickButton() {
-    SyncButton.session.send(JSON.stringify({ action: "click", id: this.id }));
+    this.broadcast(JSON.stringify({ action: "click", id: this.id }));
   }
 }
 
